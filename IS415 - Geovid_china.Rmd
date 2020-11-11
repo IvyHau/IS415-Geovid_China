@@ -21,124 +21,47 @@ for(p in packages){
 
 # Import Data
 
-```{r}
+```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 city_confirmed <- read_csv("data/aspatial/City_Confirmed_0115_1010.csv")
 city_death <- read_csv("data/aspatial/City_Death_0115_1010.csv")
 city_recover <- read_csv("data/aspatial/City_Recover_0115_1010.csv")
-city_basemap <- st_read(dsn = "data/geospatial", layer = "china_city_basemap")
-province_basemap <- st_read(dsn = "data/geospatial", layer = "china_province_basemap")
-```
-
-# Data Wrangling
-
-## Handle NA data
-
-### city_confirmed()
-
-```{r}
-length(which(is.na(city_confirmed) == TRUE))
-```
-
-city_confirmed as NA data
-
-```{r}
-city_confirmed[is.na(city_confirmed)] <- 0
-```
-
-Check again if city_confirmed() still has NA data
-
-```{r}
-length(which(is.na(city_confirmed) == TRUE))
-```
-
-### city_death()
-
-```{r}
-length(which(is.na(city_death) == TRUE))
-```
-city_confirmed as NA data
-
-```{r}
-city_death[is.na(city_death)] <- 0
-```
-
-Check again if city_confirmed() still has NA data
-
-```{r}
-length(which(is.na(city_death) == TRUE))
-```
-
-### city_recover()
-
-```{r}
-length(which(is.na(city_recover) == TRUE))
-```
-city_recover as NA data
-
-```{r}
-city_recover[is.na(city_recover)] <- 0
-```
-
-Check again if city_recover() still has NA data
-
-```{r}
-length(which(is.na(city_recover) == TRUE))
-```
-
-## Handle Invalid geometry
-
-### city_basemap
-
-Check if data has no invalid data
-
-```{r}
-length(which(st_is_valid(city_basemap) == FALSE))
-```
-### province_basemap
-
-```{r}
-length(which(st_is_valid(province_basemap) == FALSE))
-```
-
-## Check CRS
-
-### city_basemap
-
-```{r}
-st_crs(city_basemap)
-```
-EPSG is in 4326, not the correct CRS. Hence there is a need to change the CRS. 
-
-```{r}
-city_3415 <- st_transform(city_basemap, 3415)
-
-qtm(city_3415)
+china_city <- st_read(dsn = "data/geospatial", layer = "china_city_basemap")
+china_province <- st_read(dsn = "data/geospatial", layer = "china_province_basemap")
 ```
 
 
-### province_basemap
-
-```{r}
-st_crs(province_basemap)
-```
-EPSG is in 4326, not the correct CRS. Hence there is a need to change the CRS. 
-
-```{r}
-province_3415 <- st_transform(province_basemap, 3415)
-
-qtm(province_3415)
+# EPSG:3415
+```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
+china_3415 <- st_set_crs(china_city, 3415)
+qtm(china_3415)
 ```
 
+#Confirmed Cases in each City
+```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
+city_confirmed_geo <- left_join(city_confirmed, china_3415, by = c('City_EN' = 'City_EN'))
+city_confirmed_geo <- st_as_sf(city_confirmed_geo)
 
-## Join Geospatial to data
+tm_shape(city_confirmed_geo)+
+  tm_fill("T_C_09",
+          style = "quantile",
+          n = 10,
+          palette = "Blues",
+          legend.hist = TRUE, ) + 
+  #tm_facets(by="month", free.coords=TRUE, drop.shapes=FALSE) +
+  tmap_options(max.categories = 41) +
+  tm_layout(main.title = "Distribution of Cases",
+            main.title.position = "center",
+            main.title.size = 1,
+            legend.height = 0.40, 
 
-### city_confirmed
-
-```{r}
-city_confirmed_3415 <- inner_join(city_confirmed, city_3415, by = ("City_EN"))
-
-qtm(city_confirmed_3415)
+            legend.width = 0.35,
+            legend.outside = TRUE,
+            legend.position = c("right", "bottom"),
+            frame = TRUE) +
+  tm_borders(alpha = 0.5)
 ```
+
+
 
 
 
