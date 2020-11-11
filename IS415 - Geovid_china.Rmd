@@ -1,0 +1,144 @@
+---
+title: "IS415 - Geovid - China"
+author: "Ivy Hau, Shermin, Jasky"
+date: "11/11/2020"
+output: html_document
+---
+# Introduction
+
+# Load Packages
+
+```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
+packages = c('sp','tidyverse', 'sf',  'rgdal','spatstat', 'spatstat', 'raster', 'maptools', 'rgeos','dplyr', 'tmap', 'ggplot2', 'spdep', 'lubridate', 'tidygeocoder', 'leaflet', 'classInt')
+
+for(p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+
+# Import Data
+
+```{r}
+city_confirmed <- read_csv("data/aspatial/City_Confirmed_0115_1010.csv")
+city_death <- read_csv("data/aspatial/City_Death_0115_1010.csv")
+city_recover <- read_csv("data/aspatial/City_Recover_0115_1010.csv")
+city_basemap <- st_read(dsn = "data/geospatial", layer = "china_city_basemap")
+province_basemap <- st_read(dsn = "data/geospatial", layer = "china_province_basemap")
+```
+
+# Data Wrangling
+
+## Handle NA data
+
+### city_confirmed()
+
+```{r}
+length(which(is.na(city_confirmed) == TRUE))
+```
+
+city_confirmed as NA data
+
+```{r}
+city_confirmed[is.na(city_confirmed)] <- 0
+```
+
+Check again if city_confirmed() still has NA data
+
+```{r}
+length(which(is.na(city_confirmed) == TRUE))
+```
+
+### city_death()
+
+```{r}
+length(which(is.na(city_death) == TRUE))
+```
+city_confirmed as NA data
+
+```{r}
+city_death[is.na(city_death)] <- 0
+```
+
+Check again if city_confirmed() still has NA data
+
+```{r}
+length(which(is.na(city_death) == TRUE))
+```
+
+### city_recover()
+
+```{r}
+length(which(is.na(city_recover) == TRUE))
+```
+city_recover as NA data
+
+```{r}
+city_recover[is.na(city_recover)] <- 0
+```
+
+Check again if city_recover() still has NA data
+
+```{r}
+length(which(is.na(city_recover) == TRUE))
+```
+
+## Handle Invalid geometry
+
+### city_basemap
+
+Check if data has no invalid data
+
+```{r}
+length(which(st_is_valid(city_basemap) == FALSE))
+```
+### province_basemap
+
+```{r}
+length(which(st_is_valid(province_basemap) == FALSE))
+```
+
+## Check CRS
+
+### city_basemap
+
+```{r}
+st_crs(city_basemap)
+```
+EPSG is in 4326, not the correct CRS. Hence there is a need to change the CRS. 
+
+```{r}
+city_3415 <- st_transform(city_basemap, 3415)
+
+qtm(city_3415)
+```
+
+
+### province_basemap
+
+```{r}
+st_crs(province_basemap)
+```
+EPSG is in 4326, not the correct CRS. Hence there is a need to change the CRS. 
+
+```{r}
+province_3415 <- st_transform(province_basemap, 3415)
+
+qtm(province_3415)
+```
+
+
+## Join Geospatial to data
+
+### city_confirmed
+
+```{r}
+city_confirmed_3415 <- inner_join(city_confirmed, city_3415, by = ("City_EN"))
+
+qtm(city_confirmed_3415)
+```
+
+
+
