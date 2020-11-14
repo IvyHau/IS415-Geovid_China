@@ -10,7 +10,6 @@ output: html_document
 
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 packages = c('sp','tidyverse', 'sf',  'rgdal','spatstat', 'raster', 'maptools', 'rgeos','dplyr', 'tmap', 'ggplot2', 'spdep', 'lubridate', 'tidygeocoder', 'leaflet', 'classInt', 'readxl', 'ggpubr')
-
 for(p in packages){
   if(!require(p, character.only = T)){
     install.packages(p)
@@ -41,14 +40,12 @@ city_recover[is.na(city_recover)] <- 0
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 china_city <- china_city %>%
   dplyr::rename(`pop2010` = A101004_10)
-
 china_3415 <- st_set_crs(china_city, 3415)
 qtm(china_3415)
 ```
 
 # Confirmed Cases in each City
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
-
 #New Cases by month
 confirmed_new <- city_confirmed[, c(1, 6:15)] %>%
   dplyr::rename(`1` = N_C_01,
@@ -60,11 +57,9 @@ confirmed_new <- city_confirmed[, c(1, 6:15)] %>%
                 `7` = N_C_07,
                 `8` = N_C_08,
                 `9` = N_C_09) 
-
 #Change from wide table to long table
 confirmed_new_wtol <- gather(confirmed_new, month, new_count, `1`:`9`, factor_key = TRUE) %>%
   mutate(id = row_number())
-
 #Cumulative Cases by month
 confirmed_cumul <- city_confirmed[, c(1, 6, 16:24)] %>%
   dplyr::rename(`1` = T_C_01,
@@ -76,25 +71,19 @@ confirmed_cumul <- city_confirmed[, c(1, 6, 16:24)] %>%
                 `7` = T_C_07,
                 `8` = T_C_08,
                 `9` = T_C_09) 
-
 #Change from wide table to long table
 confirmed_cumul_wtol <- gather(confirmed_cumul, month, cumul_count, `1`:`9`, factor_key = TRUE)  %>%
   mutate(id = row_number())
-
 confirmed_final <- left_join(confirmed_new_wtol, confirmed_cumul_wtol, by = ("id" = "id")) %>%
   dplyr::rename(`City_EN` = City_EN.x,
                 `Prov_EN` = Prov_EN.x,
                 `month` = month.y) %>%
   dplyr::select("id", "City_EN", "Prov_EN", "month", "new_count", "cumul_count")
-
-
 #mapped to crs
 confirmed_geo <- left_join(confirmed_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
-
 #Compute Covid'19 Rate per Municipal
 confirmed_geo <- confirmed_geo %>%
   mutate(`Covid'19 Rate (Per 10,000)` = cumul_count / (as.numeric(pop2010)/10000))
-
 confirmed_geo_sf <- st_as_sf(confirmed_geo)
 confirmed_geo_sf <- confirmed_geo_sf[, c(1:6, 24, 43:44)]
 ```
@@ -112,11 +101,9 @@ death_new <- city_death[, c(1, 6:15)] %>%
                 `7` = N_D_07,
                 `8` = N_D_08,
                 `9` = N_D_09) 
-
 #Change from wide table to long table
 death_new_wtol <- gather(death_new, month, new_count, `1`:`9`, factor_key = TRUE) %>%
   mutate(id = row_number())
-
 #Cumulative Cases by month
 death_cumul <- city_death[, c(1, 6, 16:24)] %>%
   dplyr::rename(`1` = T_D_0131,
@@ -128,26 +115,20 @@ death_cumul <- city_death[, c(1, 6, 16:24)] %>%
                 `7` = T_D_0731,
                 `8` = T_D_0831,
                 `9` = T_D_0930) 
-
 #Change from wide table to long table
 death_cumul_wtol <- gather(death_cumul, month, cumul_count, `1`:`9`, factor_key = TRUE)  %>%
   mutate(id = row_number())
-
 death_final <- left_join(death_new_wtol, death_cumul_wtol, by = ("id" = "id")) %>%
   dplyr::rename(`City_EN` = City_EN.x,
                 `Prov_EN` = Prov_EN.x,
                 `month` = month.y) %>%
   dplyr::select("id", "City_EN", "Prov_EN", "month", "new_count", "cumul_count")
-
 #death_final[is.na(death_final)] <- 0
-
 #mapped to crs
 death_geo <- left_join(death_final, china_3415, by = c("City_EN" = "City_EN",  'Prov_EN' = 'Prov_EN'))
-
 #Calculate Covid '19 death rate 10,000 
 death_geo <- death_geo %>%
   dplyr::mutate("Covid'19 Death Rate(Per 10,000)" = (as.numeric(`cumul_count`)/(as.numeric(`pop2010`)/10000)))
-
 death_geo_sf <- st_as_sf(death_geo)
 death_geo_sf <- death_geo_sf[, c(1:6,24, 43:44)]
 ```
@@ -166,11 +147,9 @@ recovered_new <- city_recover[,c(1, 6:15)] %>%
                 `8` = N_H_08,
                 `9` = N_H_09
                 )
-
 #Change from wide table to long table
 recovered_new_wtol <- gather(recovered_new, month, new_count, `1`:`9`, factor_key = TRUE) %>%
   mutate(id = row_number())
-
 #Cumulative cases by month
 recovered_cumul <- city_recover[,c(1, 6, 16:24)] %>%
  dplyr::rename(`1` = T_H_01,
@@ -183,76 +162,62 @@ recovered_cumul <- city_recover[,c(1, 6, 16:24)] %>%
                 `8` = T_H_08,
                 `9` = T_H_09
                 )
-
 #Change from wide table to long table
 recovered_cumul_wtol <- gather(recovered_cumul, month, cumul_count, `1`:`9`, factor_key = TRUE) %>%
   mutate(id = row_number())
-
 recovered_final <-
   left_join(recovered_new_wtol, recovered_cumul_wtol, by=c("id" = "id")) %>%
   dplyr::rename(`City_EN` = City_EN.x,
                 `Prov_EN` = Prov_EN.x,
                 `month` = month.y) %>%
   dplyr::select("id", "City_EN", "Prov_EN", "month", "new_count", "cumul_count")
-
-
 #mapped to crs
 recovered_geo <- left_join(recovered_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
-
 #Calculate Covid '19 death rate 10,000 
 recovered_geo <- recovered_geo %>%
-  dplyr::mutate("Covid'19 Death Rate(Per 10,000)" = (as.numeric(`cumul_count`)/(as.numeric(`pop2010`)/10000)))
-
+  dplyr::mutate("Covid'19 Recovered Rate(Per 10,000)" = (as.numeric(`cumul_count`)/(as.numeric(`pop2010`)/10000)))
 recovered_geo_sf <- st_as_sf(recovered_geo)
 recovered_geo_sf <- recovered_geo_sf[, c(1:6,24, 43:44)]
-
 ```
 
 
 # Line Graph of all relevant data
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 #Summarize data by months
-
 confirmed_sum <- confirmed_geo_sf %>% 
   st_set_geometry(NULL) %>%
   group_by(month) %>%
   summarise(new_total = sum(new_count), cumul_total = sum(cumul_count)) %>%
   dplyr::rename(`confirmed_new` = new_total,
                 `confirmed_cumul` = cumul_total)
-
 death_sum <- death_geo_sf %>% 
   st_set_geometry(NULL) %>%
   group_by(month) %>% 
   summarise(new_total = sum(new_count), cumul_total = sum(cumul_count)) %>%
   dplyr::rename(`death_new` = new_total,
                 `death_cumul` = cumul_total)
-
 recovered_sum <- recovered_geo_sf %>% 
   st_set_geometry(NULL) %>%
   group_by(month) %>% 
   summarise(new_total = sum(new_count), cumul_total = sum(cumul_count)) %>%
   dplyr::rename(`recovered_new` = new_total,
                 `recovered_cumul` = cumul_total)
-
 total_cases <- left_join(confirmed_sum, death_sum, by = c('month' = 'month'))
 total_cases <- left_join(total_cases, recovered_sum, by = c('month' = 'month'))
 ```
 
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 # Plot line graph
-
 total_cumul_line <- ggplot(total_cases, aes(x=`month`, group = 1)) + 
   geom_line(aes(y=confirmed_cumul), color='darkred') +
   geom_line(aes(y=death_cumul), linetype='twodash') +
   geom_line(aes(y=recovered_cumul), color='green') + 
   ylab("No. of Cases")
-
 total_new_line <- ggplot(total_cases, aes(x=`month`, group = 1)) + 
   geom_line(aes(y=confirmed_new), color='darkred') +
   geom_line(aes(y=death_new), linetype='twodash') +
   geom_line(aes(y=recovered_new), color='green') + 
   ylab("No. of Cases")
-
 ggarrange(total_new_line, total_cumul_line, nrow=2)
 ```
 
@@ -263,6 +228,7 @@ ggarrange(total_new_line, total_cumul_line, nrow=2)
 
 
 # Confirmed Cases Choropleth Map differentiated by Months
+
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 tm_shape(confirmed_geo_sf) +
   tm_fill("cumul_count",
@@ -276,7 +242,6 @@ tm_shape(confirmed_geo_sf) +
             main.title.position = "center",
             main.title.size = 1,
             legend.height = 0.40,
-
             legend.width = 0.35,
             legend.outside = TRUE,
             legend.position = c("right", "bottom"),
@@ -284,95 +249,128 @@ tm_shape(confirmed_geo_sf) +
   tm_borders(alpha = 0.2)
 ```
 
+# Recovered Cases Choropleth Map differentiated by Months
+
+```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
+tm_shape(recovered_geo_sf) +
+  tm_fill("cumul_count",
+          style = "jenks",
+          n = 6,
+          palette = "Blues",
+          legend.hist = TRUE, ) +
+  tm_facets(by="month", free.coords=TRUE, drop.shapes=FALSE) +
+  tmap_options(max.categories = 41) +
+  tm_layout(main.title = "Distribution of Cases",
+            main.title.position = "center",
+            main.title.size = 1,
+            legend.height = 0.40,
+            legend.width = 0.35,
+            legend.outside = TRUE,
+            legend.position = c("right", "bottom"),
+            frame = TRUE) +
+  tm_borders(alpha = 0.2)
+```
+
+# Death Cases Choropleth Map differentiated by Months
+
+```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
+tm_shape(death_geo_sf) +
+  tm_fill("cumul_count",
+          style = "jenks",
+          n = 6,
+          palette = "Blues",
+          legend.hist = TRUE, ) +
+  tm_facets(by="month", free.coords=TRUE, drop.shapes=FALSE) +
+  tmap_options(max.categories = 41) +
+  tm_layout(main.title = "Distribution of Cases",
+            main.title.position = "center",
+            main.title.size = 1,
+            legend.height = 0.40,
+            legend.width = 0.35,
+            legend.outside = TRUE,
+            legend.position = c("right", "bottom"),
+            frame = TRUE) +
+  tm_borders(alpha = 0.2)
+```
+
+
+
 *Create Boxmap*
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
-boxbreaks <- function(v, mult=1.5) { 
-  qv <- quantile(v, probs=c(0.00, 0.25, 0.5, 0.75, 1.00))
-  iqr <- qv[4] - qv[2]
-  upfence <- qv[4] + mult * iqr 
-  lofence <- qv[2] - mult * iqr
-  # initialize break points vector
+boxbreaks <- function(vr, mult = 1.5) {
+  q <- unname(as.numeric(quantile(vr, na.rm = TRUE)))
+  iqr <- q[4] - q[2]
+  upfence <- q[4] + mult * iqr
+  lofence <- q[2] - mult * iqr
   bb <- vector(mode="numeric",length=7)
-  # logic for lower and upper fences
-  if (lofence < qv[1]) { # no lower outliers
+  if (lofence < q[1])  {
     bb[1] <- lofence
-    bb[2] <- floor(qv[1]) 
-    } 
-  else {
+    bb[2] <- floor(q[1])
+  } else {
     bb[2] <- lofence
-    bb[1] <- qv[1] 
-    }
-  if (upfence > qv[5]) { # no upper outliers
+    bb[1] <- q[1]
+  }
+  if (upfence > q[5]) {
     bb[7] <- upfence
-    bb[6] <- ceiling(qv[5])
-      } 
-  else {
+    bb[6] <- ceiling(q[5])
+  } else {
     bb[6] <- upfence
-    bb[7] <- qv[5]
-      }
-bb[3:5] <- qv[2:4]
-return(bb)
+    bb[7] <- q[5]
+  }
+  bb[3:5] <- q[2:4]
+  return(bb)
 }
 
-get.var <- function(vname,df) { 
+get.var <- function(vname,df) {
   v <- df[vname] %>% st_set_geometry(NULL)
   v <- unname(v[,1])
   return(v)
 }
 
-boxmap <- function(vnam, df, legtitle=NA, mtitle="Box Map", mult=1.5){
-  var <- get.var(vnam,df)
+boxmap <- function(var,df,vname, legtitle=NA,mtitle="Box Map",mult=1.5){
+  #var <- get.var(vnam,df)
   bb <- boxbreaks(var)
-  tm_shape(df) + 
-  tm_fill(vnam, title=legtitle, breaks=bb, palette="-RdBu", labels = c("lower outlier", "< 25%", "25% - 50%", "50% - 75%","> 75%", "upper outlier")) +
-  tm_facets(by="month", free.coords=TRUE, drop.shapes=FALSE) +
-  tm_borders(alpha = 0.4) + 
-  tm_layout(main.title = "Box Map of " + toString(vnam) + " at Municipality Level" , main.title.position = "center", main.title.size = 1.3, legend.position = c("right", "top"), legend.outside = TRUE , frame = FALSE) +
-    tm_text("City_EN", size = 0.15)
+  
+  tm_shape(df) +
+    tm_fill(vname, title = legtitle, breaks = bb, palette = "-RdBu", labels = c("lower outlier", "< 25%", "25% - 50%", "50% - 75%","> 75%", "upper outlier")) +
+  tm_borders() +
+  tm_layout(main.title = mtitle,
+            main.title.position = c("center","top"),
+            legend.outside = TRUE)
 }
 ```
 
-## Boxmap of Confirmed Cases 
+
+
+
+## Boxmap of Rate of Confirmed Cases Per 10,000
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
-# confirmed_geo_sf[is.na(confirmed_geo_sf)] <- 0
-# 
-# var <- get.var("Covid'19 Rate (Per 10,000)", confirmed_geo_sf)
-# qv <- unname(quantile(var))
-# bb <- boxbreaks(var)
-# 
-# boxmap("Covid'19 Rate (Per 10,000)", confirmed_geo_sf)
+confirmed_rate_boxmap <-
+  boxmap(confirmed_geo_sf$`Covid'19 Rate (Per 10,000)`, confirmed_geo_sf, "Covid'19 Rate (Per 10,000)")
+
+confirmed_rate_boxmap
 ```
 
 
+## Boxmap of Rate of recovered cases per 10,000
+
+```{r}
+recovered_rate_boxmap <-
+  boxmap(recovered_geo_sf$`Covid'19 Recovered Rate(Per 10,000)`, recovered_geo_sf, "Covid'19 Recovered Rate(Per 10,000)")
+
+recovered_rate_boxmap
+```
 
 
+## Boxmap of rate death cases per 10,000
+
+```{r}
+death_rate_boxmap <-
+  boxmap(death_geo_sf$`Covid'19 Death Rate(Per 10,000)`, death_geo_sf, "Covid'19 Death Rate(Per 10,000)")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+death_rate_boxmap
+```
 
 
 
