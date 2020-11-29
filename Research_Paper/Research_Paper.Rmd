@@ -18,6 +18,10 @@ csl: acm-sig-proceedings.csl
 bibliography: sigproc.bib
 ---
 
+```{r echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align="center")
+```
+
 
 # Introduction 
 
@@ -75,6 +79,9 @@ Global Moran I is a statistical method used to calculate the relationship betwee
 The formula for Global Moran's I is as followed:
 
 ![Global Moran's I algorithm](figures/global_moran_i_formula.png)\
+\begin{center}
+Figure 1: Global Moran's I algorithm
+\end{center}
 
 In this study, Global Moran will be used to measure the spatial correlation of Covid-19 rates per 10,000 people, to the whole of China. Moran.test() and monte carlo simulation will be done to determine the significance of spatial patterns present. 
 
@@ -87,6 +94,9 @@ Local Moran I is a local spatial autocorrelation analysis method based of Global
 The formula for Local Moran’s I is as followed:
 
 ![Local Moran's I algorithm](figures/local_moran_i_formula.png)\
+\begin{center}
+Figure 2: Local Moran's I algorithm
+\end{center}
 
 In this study, Local Moran’s I will be used to measure the local spatial correlation of Covid-19 rates per 10,000 people to cities in China. 
 
@@ -108,12 +118,6 @@ Data of the coronavirus virus spread in China (January to September, 2020): Conf
 For all the respective data: Confirmed, Recovered and Death cases, we will only need to extract the daily count based on the date that the data was recorded. We will be focusing only from January to September 2020 as these datasets are the most complete range in the originals. In addition, duplicates will also need to be checked and removed to prevent skewed data analysis. Standardization of data, such as, ensuring columns of each data files and their data types are the same before reclassifying selected columns, is conducted. Consequently, it will then produce an unbiased comparison and analysis.
 
 
-## Data Transformation
-
-
-<TBC>
-
-
 # System Architecture
 
 
@@ -121,17 +125,142 @@ Our application is built using R programming language, a widely used language am
 
 R Packages used for application development as below: 
 
-------------- | -------------
-sp    |   sf    |   spdep 
-spatstat  |  tidyverse   |   tidygeocoder
-lubridate   | leaflet   |   classInt
-rgdal   |   raster    |   readxl
-rgeos   |   rsconnect   |   maptools
-dplyr   |   ggplot2   |   ggpubr
-tmap    |   shiny   |   shinythemes
+```{r echo=FALSE, message=FALSE}
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+rpkg.a <- c("sp", "spatstat", "lubridate", "rgdal", "rgeos", "dplyr", "tmap")
+rpkg.b <- c("sf", "tidyverse", "leaflet", "raster", "rsconnect", "ggplot2", "shiny")
+rpkg.c <- c("spdep", "tidygeocoder", "classInt", "readxl", "maptools", "ggpubr", "shinythemes")
+
+rpkg <- cbind(rpkg.a, rpkg.b)
+rpkg <- cbind(rpkg, rpkg.c)
+rpkg <- data.frame(rpkg)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+rpkg %>%
+  kbl(col.names = NULL) %>%
+  kable_paper("hover", full_width = F)
+```
 
 
 # Application
+
+## User Interface Design
+
+
+Our application consists of 3 tabs which will lead our user to the exploratory data analysis, spatial autocorrelation analysis and full detailed dataset that the application uses to analyze the results. 
+
+On the Exploratory Data Analysis (EDA) page, there are 3 additional sub-sections, namely Line Graph, Choropleth, and Box Map. As seen below from the following figures[-], line graph is used to analyze the daily and cumulative count of COVID-19 cases over the priod of months from January to September 2020, choropleth mapping is used to view the geographical distribution of the spread at provincial-cities level, and box mapping to visualize the outliers using the interquartile range of the COVID-19 rate based on the total number of cases and the total number of population in each city. 
+
+![EDA Line Graph User Interface Design](figures/ui/eda-page-ui-line.jpg)\
+\begin{center}
+Figure -: EDA Line Graph User Interface Design
+\end{center}
+![EDA Line Graph User Interface Design](figures/ui/eda-page-ui-choropleth.jpg)\
+\begin{center}
+Figure -: EDA Choropleth User Interface Design
+\end{center}
+![EDA Line Graph User Interface Design](figures/ui/eda-page-ui-boxmap.jpg)\
+\begin{center}
+Figure -: EDA Box Map User Interface Design
+\end{center}
+
+
+Moving on to the Spatial Autocorrelation Analysis page, 
+
+![Spatial Autocorrelation User Interface Design](figures/ui/spatial-autocorrelation-page-ui.jpg)\
+\begin{center}
+Figure -: Spatial Autocorrelation User Interface Design
+\end{center}
+
+
+Lastly, on the Data page, it will showcase the data in a table format where the user will be able to view the raw data that is used for our analysis. 
+
+![Data Outlook User Interface Design](figures/ui/data-page.jpg)\
+\begin{center}
+Figure -: Data Outlook User Interface Design
+\end{center}
+
+
+## Filters & Components
+
+### Exploratory Data Analysis (EDA) Tab
+
+
+User will be able to filter the data by period of months they want to analyze and the data type(s): Confirmed, Recovered and Death they wish to view. 
+
+![EDA User Input](figures/ui/eda-user-input.jpg)\
+\begin{center}
+Figure -: EDA User Input
+\end{center}
+
+<!-- Within EDA, there are 3 different analysis the user is able to view. There are line graphs for daily and cumulative number of cases based on the months input, choropleth mapping for the geographical distribution of the spread of COVID-19 and lastly, box map to analyze extreme values and outliers. -->
+
+![EDA Tabs](figures/ui/eda-tabs.jpg)\
+\begin{center}
+Figure -: EDA Tabs
+\end{center}
+
+
+### Spatial Autocorrelation Analysis Tab
+
+
+Similarly, user will be able to filter the data by period of months they want to analyze and the data type(s): Confirmed, Recovered and Death they wish to view. In addition, user will also be able to choose the neighbourhood matrix and standardization type for spatial autocorrelation analysis such as local moran's I and global moran's I.
+
+![Spatial Autocorrelation User Input](figures/ui/spatial-autocorrelation-user-input.jpg)\
+\begin{center}
+Figure -: Spatial Autocorrelation User Input
+\end{center}
+
+
+# Results
+
+## Exploratory Data Analysis
+
+### Confirmed Cases
+
+
+![Line Graph of Confirmed Cases](figures/EDA/confirmed_linegraph.png)\
+\begin{center}
+Figure -: Line Graph of Confirmed Cases
+\end{center}
+
+![Choropleth of Confirmed Cases](figures/EDA/confirmed_choropleth.png)\
+\begin{center}
+Figure -: Choropleth of Confirmed Cases
+\end{center}
+
+![Box Map of Confirmed Cases](figures/EDA/confirmed_boxmap.png)\
+\begin{center}
+Figure -: Box Map of Confirmed Cases
+\end{center}
+
+
+### Recovered Cases
+
+### Death Cases
+
+
+![Line Graph of Death Cases](figures/EDA/death_linegraph.png)\
+\begin{center}
+Figure -: Line Graph of Death Cases
+\end{center}
+
+![Choropleth of Death Cases](figures/EDA/death_choropleth.png)\
+\begin{center}
+Figure -: Choropleth of Death Cases
+\end{center}
+
+![Box Map of Death Cases](figures/EDA/death_boxmap.png)\
+\begin{center}
+Figure -: Box Map of Death Cases
+\end{center}
+
+
+### Conclusion
 
 
 # Limitations
