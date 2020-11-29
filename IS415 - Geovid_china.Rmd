@@ -6,6 +6,11 @@ output: html_document
 ---
 # Introduction
 
+Utilise Garbage Collector First to Free Up Memory Load from Our Limited RAM (POOR RAM)
+```{r}
+gc()
+```
+
 # Load Packages
 
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
@@ -58,7 +63,7 @@ confirmed_new <- city_confirmed[, c(1, 6:15)] %>%
                 `8` = N_C_08,
                 `9` = N_C_09) 
 #Change from wide table to long table
-confirmed_new_wtol <- gather(confirmed_new, month, new_count, `1`:`9`, factor_key = TRUE) %>%
+confirmed_new_wtol <- gather(confirmed_new, month, confirmed_new_count, `1`:`9`, factor_key = TRUE) %>%
   mutate(id = row_number())
 #Cumulative Cases by month
 confirmed_cumul <- city_confirmed[, c(1, 6, 16:24)] %>%
@@ -72,21 +77,31 @@ confirmed_cumul <- city_confirmed[, c(1, 6, 16:24)] %>%
                 `8` = T_C_08,
                 `9` = T_C_09) 
 #Change from wide table to long table
-confirmed_cumul_wtol <- gather(confirmed_cumul, month, cumul_count, `1`:`9`, factor_key = TRUE)  %>%
+confirmed_cumul_wtol <- gather(confirmed_cumul, month, confirmed_cumul_count, `1`:`9`, factor_key = TRUE)  %>%
   mutate(id = row_number())
 confirmed_final <- left_join(confirmed_new_wtol, confirmed_cumul_wtol, by = ("id" = "id")) %>%
   dplyr::rename(`City_EN` = City_EN.x,
                 `Prov_EN` = Prov_EN.x,
                 `month` = month.y) %>%
-  dplyr::select("id", "City_EN", "Prov_EN", "month", "new_count", "cumul_count")
+  dplyr::select("id", "City_EN", "Prov_EN", "month", "confirmed_new_count", "confirmed_cumul_count")
 #mapped to crs
 confirmed_geo <- left_join(confirmed_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
 #Compute Covid'19 Rate per Municipal
 confirmed_geo <- confirmed_geo %>%
-  mutate(`Covid'19 Rate (Per 10,000)` = cumul_count / (as.numeric(pop2010)/10000))
+  mutate(`Covid'19 confirmed rate (Per 10,000)` = confirmed_cumul_count / (as.numeric(pop2010)/10000))
 confirmed_geo_sf <- st_as_sf(confirmed_geo)
 confirmed_geo_sf <- confirmed_geo_sf[, c(1:6, 24, 43:44)]
 ```
+
+```{r}
+confirmed_geo_2 <- left_join(confirmed_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
+confirmed_geo_2 <- confirmed_geo_2 %>%
+  mutate(`confirmed_cumul_count` = confirmed_cumul_count / (as.numeric(pop2010)/10000))
+confirmed_geo_acu_sf <- st_as_sf(confirmed_geo_2)
+#glimpse(confirmed_geo_acu_sf)
+#death_geo_acu_sf <- death_geo_acu_sf[, c(1:6,24, 43:44)]
+```
+
 
 # Death Cases in each City
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
@@ -102,7 +117,7 @@ death_new <- city_death[, c(1, 6:15)] %>%
                 `8` = N_D_08,
                 `9` = N_D_09) 
 #Change from wide table to long table
-death_new_wtol <- gather(death_new, month, new_count, `1`:`9`, factor_key = TRUE) %>%
+death_new_wtol <- gather(death_new, month, death_new_count, `1`:`9`, factor_key = TRUE) %>%
   mutate(id = row_number())
 #Cumulative Cases by month
 death_cumul <- city_death[, c(1, 6, 16:24)] %>%
@@ -114,23 +129,36 @@ death_cumul <- city_death[, c(1, 6, 16:24)] %>%
                 `6` = T_D_0630,
                 `7` = T_D_0731,
                 `8` = T_D_0831,
-                `9` = T_D_0930) 
+                `9` = T_D_0930)
 #Change from wide table to long table
-death_cumul_wtol <- gather(death_cumul, month, cumul_count, `1`:`9`, factor_key = TRUE)  %>%
+death_cumul_wtol <- gather(death_cumul, month, death_cumul_count, `1`:`9`, factor_key = TRUE)  %>%
   mutate(id = row_number())
+
 death_final <- left_join(death_new_wtol, death_cumul_wtol, by = ("id" = "id")) %>%
   dplyr::rename(`City_EN` = City_EN.x,
                 `Prov_EN` = Prov_EN.x,
                 `month` = month.y) %>%
-  dplyr::select("id", "City_EN", "Prov_EN", "month", "new_count", "cumul_count")
+  dplyr::select("id", "City_EN", "Prov_EN", "month", "death_new_count", "death_cumul_count")
 #death_final[is.na(death_final)] <- 0
 #mapped to crs
+#death_geo <- full_join(death_final, china_3415, by = c("City_EN" = "City_EN",  'Prov_EN' = 'Prov_EN'))
 death_geo <- left_join(death_final, china_3415, by = c("City_EN" = "City_EN",  'Prov_EN' = 'Prov_EN'))
+
 #Calculate Covid '19 death rate 10,000 
 death_geo <- death_geo %>%
-  dplyr::mutate("Covid'19 Death Rate(Per 10,000)" = (as.numeric(`cumul_count`)/(as.numeric(`pop2010`)/10000)))
+  #dplyr::mutate("Covid'19 death rate (Per 10,000)" = (as.numeric(`death_cumul_count`)/(as.numeric(`pop2010`)/10000)))
+  mutate(`Covid'19 death rate (Per 10,000)` = death_cumul_count / (as.numeric(pop2010)/10000))
 death_geo_sf <- st_as_sf(death_geo)
 death_geo_sf <- death_geo_sf[, c(1:6,24, 43:44)]
+#death_geo_sf <- death_geo_sf[!st_is_empty(death_geo_sf),,drop=FALSE]
+
+```
+
+```{r}
+death_geo_2 <- left_join(death_final, china_3415, by = c("City_EN" = "City_EN",  'Prov_EN' = 'Prov_EN'))
+death_geo_acu_sf <- st_as_sf(death_geo_2)
+#glimpse(death_geo_acu_sf)
+#death_geo_acu_sf <- death_geo_acu_sf[, c(1:6,24, 43:44)]
 ```
 
 # Recovered Cases in each City
@@ -148,7 +176,7 @@ recovered_new <- city_recover[,c(1, 6:15)] %>%
                 `9` = N_H_09
                 )
 #Change from wide table to long table
-recovered_new_wtol <- gather(recovered_new, month, new_count, `1`:`9`, factor_key = TRUE) %>%
+recovered_new_wtol <- gather(recovered_new, month, recovered_new_count, `1`:`9`, factor_key = TRUE) %>%
   mutate(id = row_number())
 #Cumulative cases by month
 recovered_cumul <- city_recover[,c(1, 6, 16:24)] %>%
@@ -163,23 +191,28 @@ recovered_cumul <- city_recover[,c(1, 6, 16:24)] %>%
                 `9` = T_H_09
                 )
 #Change from wide table to long table
-recovered_cumul_wtol <- gather(recovered_cumul, month, cumul_count, `1`:`9`, factor_key = TRUE) %>%
+recovered_cumul_wtol <- gather(recovered_cumul, month, recovered_cumul_count, `1`:`9`, factor_key = TRUE) %>%
   mutate(id = row_number())
 recovered_final <-
   left_join(recovered_new_wtol, recovered_cumul_wtol, by=c("id" = "id")) %>%
   dplyr::rename(`City_EN` = City_EN.x,
                 `Prov_EN` = Prov_EN.x,
                 `month` = month.y) %>%
-  dplyr::select("id", "City_EN", "Prov_EN", "month", "new_count", "cumul_count")
+  dplyr::select("id", "City_EN", "Prov_EN", "month", "recovered_new_count", "recovered_cumul_count")
 #mapped to crs
 recovered_geo <- left_join(recovered_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
 #Calculate Covid '19 death rate 10,000 
 recovered_geo <- recovered_geo %>%
-  dplyr::mutate("Covid'19 Recovered Rate(Per 10,000)" = (as.numeric(`cumul_count`)/(as.numeric(`pop2010`)/10000)))
+  dplyr::mutate("Covid'19 recovered Rate (Per 10,000)" = (as.numeric(`recovered_cumul_count`)/(as.numeric(`pop2010`)/10000)))
 recovered_geo_sf <- st_as_sf(recovered_geo)
 recovered_geo_sf <- recovered_geo_sf[, c(1:6,24, 43:44)]
 ```
 
+```{r}
+recovered_geo_2 <- left_join(recovered_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
+recovered_geo_acu_sf <- st_as_sf(recovered_geo_2)
+#glimpse(recovered_geo_acu_sf)
+```
 
 # Line Graph of all relevant data
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
@@ -187,23 +220,27 @@ recovered_geo_sf <- recovered_geo_sf[, c(1:6,24, 43:44)]
 confirmed_sum <- confirmed_geo_sf %>% 
   st_set_geometry(NULL) %>%
   group_by(month) %>%
-  summarise(new_total = sum(new_count), cumul_total = sum(cumul_count)) %>%
+  summarise(new_total = sum(confirmed_new_count), cumul_total = sum(confirmed_cumul_count)) %>%
   dplyr::rename(`confirmed_new` = new_total,
                 `confirmed_cumul` = cumul_total)
 death_sum <- death_geo_sf %>% 
   st_set_geometry(NULL) %>%
   group_by(month) %>% 
-  summarise(new_total = sum(new_count), cumul_total = sum(cumul_count)) %>%
+  summarise(new_total = sum(death_new_count), cumul_total = sum(death_cumul_count)) %>%
   dplyr::rename(`death_new` = new_total,
                 `death_cumul` = cumul_total)
 recovered_sum <- recovered_geo_sf %>% 
   st_set_geometry(NULL) %>%
   group_by(month) %>% 
-  summarise(new_total = sum(new_count), cumul_total = sum(cumul_count)) %>%
+  summarise(new_total = sum(recovered_new_count), cumul_total = sum(recovered_cumul_count)) %>%
   dplyr::rename(`recovered_new` = new_total,
                 `recovered_cumul` = cumul_total)
 total_cases <- left_join(confirmed_sum, death_sum, by = c('month' = 'month'))
 total_cases <- left_join(total_cases, recovered_sum, by = c('month' = 'month'))
+```
+
+```{r}
+glimpse(total_cases)
 ```
 
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
@@ -212,7 +249,8 @@ total_cumul_line <- ggplot(total_cases, aes(x=`month`, group = 1)) +
   geom_line(aes(y=confirmed_cumul), color='darkred') +
   geom_line(aes(y=death_cumul), linetype='twodash') +
   geom_line(aes(y=recovered_cumul), color='green') + 
-  ylab("No. of Cases")
+  ylab("No. of Cases") +
+  scale_color_discrete(name = "Cumulative Cases", labels = c("Confirmed", "Death", "Recovered"))
 total_new_line <- ggplot(total_cases, aes(x=`month`, group = 1)) + 
   geom_line(aes(y=confirmed_new), color='darkred') +
   geom_line(aes(y=death_new), linetype='twodash') +
@@ -221,17 +259,26 @@ total_new_line <- ggplot(total_cases, aes(x=`month`, group = 1)) +
 ggarrange(total_new_line, total_cumul_line, nrow=2)
 ```
 
+```{r}
+paste("death","_cumul", sep = "")
+```
 
-
-
-
+```{r}
+ggplot(data = total_cases, aes(x=`month`, y=`death_cumul`, group = 1)) +
+            geom_line(linetype="twodash") +
+            scale_x_discrete(breaks = c(seq(from = 1, to = 9, by = 1)),
+                               labels = c(seq(from = 1, to = 9, by = 1) ))+
+            xlab("Months") +
+            ylab("Number of cases")+
+            ggtitle("Cumulative Cases")
+```
 
 
 # Confirmed Cases Choropleth Map differentiated by Months
 
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 tm_shape(confirmed_geo_sf) +
-  tm_fill("cumul_count",
+  tm_fill("confirmed_cumul_count",
           style = "jenks",
           n = 6,
           palette = "Blues",
@@ -253,7 +300,7 @@ tm_shape(confirmed_geo_sf) +
 
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 tm_shape(recovered_geo_sf) +
-  tm_fill("cumul_count",
+  tm_fill("recovered_cumul_count",
           style = "jenks",
           n = 6,
           palette = "Blues",
@@ -275,7 +322,7 @@ tm_shape(recovered_geo_sf) +
 
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 tm_shape(death_geo_sf) +
-  tm_fill("cumul_count",
+  tm_fill("death_cumul_count",
           style = "jenks",
           n = 6,
           palette = "Blues",
@@ -340,13 +387,10 @@ boxmap <- function(var,df,vname, legtitle=NA,mtitle="Box Map",mult=1.5){
 }
 ```
 
-
-
-
 ## Boxmap of Rate of Confirmed Cases Per 10,000
 ```{r echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 confirmed_rate_boxmap <-
-  boxmap(confirmed_geo_sf$`Covid'19 Rate (Per 10,000)`, confirmed_geo_sf, "Covid'19 Rate (Per 10,000)")
+  boxmap(confirmed_geo_sf$`Covid'19 confirmed rate (Per 10,000)`, confirmed_geo_sf, "Covid'19 confirmed rate (Per 10,000)")
 
 confirmed_rate_boxmap
 ```
@@ -356,7 +400,7 @@ confirmed_rate_boxmap
 
 ```{r}
 recovered_rate_boxmap <-
-  boxmap(recovered_geo_sf$`Covid'19 Recovered Rate(Per 10,000)`, recovered_geo_sf, "Covid'19 Recovered Rate(Per 10,000)")
+  boxmap(recovered_geo_sf$`Covid'19 recovered Rate (Per 10,000)`, recovered_geo_sf, "Covid'19 recovered Rate (Per 10,000)")
 
 recovered_rate_boxmap
 ```
@@ -366,11 +410,4289 @@ recovered_rate_boxmap
 
 ```{r}
 death_rate_boxmap <-
-  boxmap(death_geo_sf$`Covid'19 Death Rate(Per 10,000)`, death_geo_sf, "Covid'19 Death Rate(Per 10,000)")
+  boxmap(death_geo_sf$`Covid'19 death rate (Per 10,000)`, death_geo_sf, "Covid'19 death rate (Per 10,000)")
 
 
 death_rate_boxmap
 ```
+# Local Spatial Autocorrelation Analysis
+
+The 2 methods to calculate local spatial autocorrelation are:
+1. Local Moran's I 
+2. Local Getis-Ord-Gi*
+
+# Modelling Spatial Neighbors
+
+## Data Wrangling to summarise filtered months
+
+```{r}
+# Confirmed
+confirmed_geo_sf_sum <- confirmed_geo_sf %>%
+  group_by(`City_EN`, `Prov_EN`, `pop2010`) %>%
+  filter(as.numeric(`month`) >= 1,
+         as.numeric(`month`) <= 7) %>%
+  dplyr::select(-`month`) %>%
+  summarise(confirmed_new_count = sum(`confirmed_new_count`)) %>%
+  mutate("Covid'19 confirmed rate (Per 10,000)" = (as.numeric(`confirmed_new_count`)/(as.numeric(`pop2010`)/10000)))
+
+confirmed_geo_acu_sf <- confirmed_geo_acu_sf %>%
+  group_by(`City_EN`, `Prov_EN`, `pop2010`)
+
+confirmed_geo_acu_jan_sf <- confirmed_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 1)
+
+confirmed_geo_acu_apr_sf <- confirmed_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 4)
+
+confirmed_geo_acu_jul_sf <- confirmed_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 7)
+
+confirmed_geo_acu_sep_sf <- confirmed_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 9)
+
+# Recovered
+recovered_geo_sf_sum <- recovered_geo_sf %>%
+  group_by(`City_EN`, `Prov_EN`, `pop2010`) %>%
+  filter(as.numeric(`month`) >= 1,
+         as.numeric(`month`) <= 7) %>%
+  dplyr::select(-`month`) %>%
+  summarise(recovered_new_count = sum(`recovered_new_count`)) %>%
+  mutate("Covid'19 recovered rate (Per 10,000)" = (as.numeric(`recovered_new_count`)/(as.numeric(`pop2010`)/10000)))
+
+recovered_geo_acu_sf <- recovered_geo_acu_sf %>%
+  group_by(`City_EN`, `Prov_EN`, `pop2010`)
+
+recovered_geo_acu_jan_sf <- recovered_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 1)
+
+recovered_geo_acu_apr_sf <- recovered_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 4)
+
+recovered_geo_acu_jul_sf <- recovered_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 7)
+
+recovered_geo_acu_sep_sf <- recovered_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 9)
+
+# Death
+death_geo_sf_sum <- death_geo_sf %>%
+  group_by(`City_EN`, `Prov_EN`, `pop2010`) %>%
+  filter(as.numeric(`month`) >= 1,
+         as.numeric(`month`) <= 7) %>%
+  dplyr::select(-`month`) %>%
+  summarise(death_new_count = sum(`death_new_count`)) %>%
+  mutate("Covid'19 death rate (Per 10,000)" = (as.numeric(`death_new_count`)/(as.numeric(`pop2010`)/10000)))
+
+death_geo_acu_sf <- death_geo_acu_sf %>%
+  group_by(`City_EN`, `Prov_EN`, `pop2010`)
+
+death_geo_acu_jan_sf <- death_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 1)
+
+death_geo_acu_apr_sf <- death_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 4)
+
+death_geo_acu_jul_sf <- death_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 7)
+
+death_geo_acu_sep_sf <- death_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 9)
+```
+
+
+
+## Data Conversion to sp
+
+```{r}
+confirmed_geo_sp <- sf:::as_Spatial(confirmed_geo_sf_sum)
+confirmed_geo_acu_sp <- sf::: as_Spatial(confirmed_geo_acu_sf)
+confirmed_geo_acu_jan_sp <- sf::: as_Spatial(confirmed_geo_acu_jan_sf)
+confirmed_geo_acu_apr_sp <- sf::: as_Spatial(confirmed_geo_acu_apr_sf)
+confirmed_geo_acu_jul_sp <- sf::: as_Spatial(confirmed_geo_acu_jul_sf)
+confirmed_geo_acu_sep_sp <- sf::: as_Spatial(confirmed_geo_acu_sep_sf)
+
+recovered_geo_sp <- sf:::as_Spatial(recovered_geo_sf_sum)
+recovered_geo_acu_sp <- sf:::as_Spatial(recovered_geo_acu_sf)
+recovered_geo_acu_jan_sp <- sf:::as_Spatial(recovered_geo_acu_jan_sf)
+recovered_geo_acu_apr_sp <- sf:::as_Spatial(recovered_geo_acu_apr_sf)
+recovered_geo_acu_jul_sp <- sf:::as_Spatial(recovered_geo_acu_jul_sf)
+recovered_geo_acu_sep_sp <- sf:::as_Spatial(recovered_geo_acu_sep_sf)
+
+death_geo_sf_sum <- death_geo_sf_sum[!st_is_empty(death_geo_sf_sum),,drop=FALSE]
+death_geo_acu_sf <- death_geo_acu_sf[!st_is_empty(death_geo_acu_sf),,drop=FALSE]
+
+death_geo_acu_jan_sf <- death_geo_acu_jan_sf[!st_is_empty(death_geo_acu_jan_sf),,drop=FALSE]
+
+death_geo_acu_apr_sf <- death_geo_acu_apr_sf[!st_is_empty(death_geo_acu_apr_sf),,drop=FALSE]
+
+death_geo_acu_jul_sf <- death_geo_acu_jul_sf[!st_is_empty(death_geo_acu_jul_sf),,drop=FALSE]
+
+death_geo_acu_sep_sf <- death_geo_acu_sep_sf[!st_is_empty(death_geo_acu_sep_sf),,drop=FALSE]
+
+death_geo_sp <- sf:::as_Spatial(death_geo_sf_sum)
+death_geo_acu_sp <- sf:::as_Spatial(death_geo_acu_sf)
+death_geo_acu_jan_sp <- sf:::as_Spatial(death_geo_acu_jan_sf)
+death_geo_acu_apr_sp <- sf:::as_Spatial(death_geo_acu_apr_sf)
+death_geo_acu_jul_sp <- sf:::as_Spatial(death_geo_acu_jul_sf)
+death_geo_acu_sep_sp <- sf:::as_Spatial(death_geo_acu_sep_sf)
+```
+
+## Rook contiguity based neighbours
+
+### Confirmed cases
+
+```{r}
+confirmed_wm_r <- poly2nb(confirmed_geo_sp, queen=FALSE)
+plot(confirmed_geo_sp, border="lightgrey")
+plot(confirmed_wm_r, coordinates(confirmed_geo_sp), pch = 19, cex = 0.6, add = TRUE, col= "red")
+summary(confirmed_wm_r)
+str(confirmed_wm_r)
+```
+
+### Recovered Cases
+
+```{r}
+recovered_wm_r <- poly2nb(recovered_geo_sp, queen=FALSE)
+plot(recovered_geo_sp, border="lightgrey")
+plot(recovered_wm_r, coordinates(recovered_geo_sp), pch = 19, cex = 0.6, add = TRUE, col= "red")
+summary(recovered_wm_r)
+str(recovered_wm_r)
+```
+
+
+### Death Cases
+
+```{r}
+death_wm_r <- poly2nb(death_geo_sp, queen=FALSE)
+plot(death_geo_sp, border="lightgrey")
+plot(death_wm_r, coordinates(death_geo_sp), pch = 19, cex = 0.6, add = TRUE, col= "red")
+summary(death_wm_r)
+str(death_wm_r)
+```
+
+## QUEEN contiguity based neighbours
+
+### Confirmed cases
+
+```{r}
+confirmed_wm_q <- poly2nb(confirmed_geo_sp, queen=TRUE)
+plot(confirmed_geo_sp, border="lightgrey")
+plot(confirmed_wm_q, coordinates(confirmed_geo_sp), pch = 19, cex = 0.6, add = TRUE, col= "red")
+summary(confirmed_wm_q)
+str(confirmed_wm_q)
+```
+
+### Recovered cases
+
+```{r}
+recovered_wm_q <- poly2nb(recovered_geo_sp, queen=TRUE)
+plot(recovered_geo_sp, border="lightgrey")
+plot(recovered_wm_q, coordinates(recovered_geo_sp), pch = 19, cex = 0.6, add = TRUE, col= "red")
+summary(recovered_wm_q)
+str(recovered_wm_q)
+```
+
+### Death cases
+
+```{r}
+death_wm_q <- poly2nb(death_geo_sp, queen=TRUE)
+plot(death_geo_sp, border="lightgrey")
+plot(death_wm_q, coordinates(death_geo_sp), pch = 19, cex = 0.6, add = TRUE, col= "red")
+summary(death_wm_q)
+str(death_wm_q)
+```
+
+## Fixed Distance based matrix
+
+### Confirmed Cases
+
+```{r}
+# 1. coordinates() - To return points belonging to set of k nearest neighbors
+# 2. knn2b() & knearneigh() - Convert the object by knearneigh into neighbor list
+# 3. nbdists() - Return neighbor relationhship length
+c_coords <- coordinates(confirmed_geo_sp)
+c_k1 <- knn2nb(knearneigh(c_coords, k = 1))
+c_k1dists <- unlist(nbdists(c_k1, c_coords))
+summary(c_k1dists)
+
+c_wm_d4 <- dnearneigh(c_coords, 0, 4, longlat = FALSE)
+summary(c_wm_d4)
+str(c_wm_d4)
+
+plot(confirmed_geo_sp, border="lightgrey")
+plot(c_wm_d4, c_coords, add=TRUE)
+plot(c_k1, c_coords, add=TRUE, col="red", length=0.08)
+```
+
+### Recovered Cases
+
+```{r}
+# 1. coordinates() - To return points belonging to set of k nearest neighbors
+# 2. knn2b() & knearneigh() - Convert the object by knearneigh into neighbor list
+# 3. nbdists() - Return neighbor relationhship length
+r_coords <- coordinates(recovered_geo_sp)
+r_k1 <- knn2nb(knearneigh(r_coords))
+r_k1dists <- unlist(nbdists(r_k1, r_coords))
+summary(r_k1dists)
+
+r_wm_d4 <- dnearneigh(r_coords, 0, 4, longlat = FALSE)
+summary(r_wm_d4)
+str(r_wm_d4)
+
+plot(recovered_geo_sp, border="lightgrey")
+plot(r_wm_d4, r_coords, add=TRUE)
+plot(r_k1, r_coords, add=TRUE, col="red", length=0.08)
+
+```
+
+### Death Cases
+
+```{r}
+# 1. coordinates() - To return points belonging to set of k nearest neighbors
+# 2. knn2b() & knearneigh() - Convert the object by knearneigh into neighbor list
+# 3. nbdists() - Return neighbor relationhship length
+d_coords <- coordinates(death_geo_sp)
+d_k1 <- knn2nb(knearneigh(d_coords))
+d_k1dists <- unlist(nbdists(d_k1, d_coords))
+summary(d_k1dists)
+
+d_wm_d5 <- dnearneigh(d_coords, 0, 5, longlat = FALSE)
+summary(d_wm_d5)
+str(d_wm_d5)
+
+#Plot Fixed Distance Matrix
+plot(death_geo_sp, border="lightgrey")
+plot(d_wm_d5, d_coords, add=TRUE)
+plot(d_k1, d_coords, add=TRUE, col="red", length=0.08)
+```
+
+## Adaptive Distance Based Matrix
+
+### Confirmed Cases
+
+```{r}
+c_knn4 <- knn2nb(knearneigh(c_coords, k=4))
+c_knn4
+str(c_knn4)
+
+plot(confirmed_geo_sp, border="lightgrey")
+plot(c_knn4, c_coords, pch = 19, cex = 0.6, add = TRUE, col = "red")
+```
+
+### Recovered Cases
+
+```{r}
+r_knn4 <- knn2nb(knearneigh(r_coords, k=4))
+r_knn4
+str(r_knn4)
+
+plot(recovered_geo_sp, border="lightgrey")
+plot(r_knn4, r_coords, pch = 19, cex = 0.6, add = TRUE, col = "red")
+```
+
+
+### Death Cases
+
+```{r}
+d_knn5 <- knn2nb(knearneigh(d_coords, k=5))
+d_knn5
+str(d_knn5)
+
+plot(death_geo_sp, border="lightgrey")
+plot(d_knn5, d_coords, pch = 19, cex = 0.6, add = TRUE, col = "red")
+```
+
+## Row-standardised Weights Matrix
+
+## nb2listw() Style = "W"
+
+### Rook Contiguity Based Matrix
+
+#### Confirmed Cases
+
+```{r}
+rsc_wm_r_w <- nb2listw(confirmed_wm_r, style = "W", zero.policy = TRUE)
+#str(rsc_wm_r_w)
+```
+
+#### Recovered Cases
+
+```{r}
+rsr_wm_r_w <- nb2listw(recovered_wm_r, style = "W", zero.policy = TRUE)
+#str(rsr_wm_r_w)
+```
+
+#### Death Cases
+
+```{r}
+rsd_wm_r_w <- nb2listw(death_wm_r, style = "W", zero.policy = TRUE)
+#str(rsd_wm_r_w)
+```
+
+### Queen Contiguity Based Matrix
+
+#### Confirmed Cases
+
+```{r}
+rsc_wm_q_w <- nb2listw(confirmed_wm_q, style = "W", zero.policy = TRUE)
+
+confirmed_acu_wm_q <- poly2nb(confirmed_geo_acu_sp, queen=TRUE)
+confirmed_acu_jan_wm_q <- poly2nb(confirmed_geo_acu_jan_sp, queen=TRUE)
+confirmed_acu_apr_wm_q <- poly2nb(confirmed_geo_acu_apr_sp, queen=TRUE)
+confirmed_acu_jul_wm_q <- poly2nb(confirmed_geo_acu_jul_sp, queen=TRUE)
+confirmed_acu_sep_wm_q <- poly2nb(confirmed_geo_acu_sep_sp, queen=TRUE)
+
+rsc_acu_wm_q_w <- nb2listw(confirmed_acu_wm_q, style = "W", zero.policy = TRUE)
+rsc_acu_jan_wm_q_w <- nb2listw(confirmed_acu_jan_wm_q, style = "W", zero.policy = TRUE)
+rsc_acu_apr_wm_q_w <- nb2listw(confirmed_acu_apr_wm_q, style = "W", zero.policy = TRUE)
+rsc_acu_jul_wm_q_w <- nb2listw(confirmed_acu_jul_wm_q, style = "W", zero.policy = TRUE)
+rsc_acu_sep_wm_q_w <- nb2listw(confirmed_acu_sep_wm_q, style = "W", zero.policy = TRUE)
+
+#str(rsc_wm_q_w)
+```
+
+#### Recovered Cases
+
+```{r}
+rsr_wm_q_w <- nb2listw(recovered_wm_q, style = "W", zero.policy = TRUE)
+
+recovered_acu_wm_q <- poly2nb(recovered_geo_acu_sp, queen=TRUE)
+recovered_acu_jan_wm_q <- poly2nb(recovered_geo_acu_jan_sp, queen=TRUE)
+recovered_acu_apr_wm_q <- poly2nb(recovered_geo_acu_apr_sp, queen=TRUE)
+recovered_acu_jul_wm_q <- poly2nb(recovered_geo_acu_jul_sp, queen=TRUE)
+recovered_acu_sep_wm_q <- poly2nb(recovered_geo_acu_sep_sp, queen=TRUE)
+
+rsr_acu_wm_q_w <- nb2listw(recovered_acu_wm_q, style = "W", zero.policy = TRUE)
+rsr_acu_jan_wm_q_w <- nb2listw(recovered_acu_jan_wm_q, style = "W", zero.policy = TRUE)
+rsr_acu_apr_wm_q_w <- nb2listw(recovered_acu_apr_wm_q, style = "W", zero.policy = TRUE)
+rsr_acu_jul_wm_q_w <- nb2listw(recovered_acu_jul_wm_q, style = "W", zero.policy = TRUE)
+rsr_acu_sep_wm_q_w <- nb2listw(recovered_acu_sep_wm_q, style = "W", zero.policy = TRUE)
+#str(rsr_wm_q_w)
+```
+
+#### Death Cases
+
+```{r}
+rsd_wm_q_w <- nb2listw(death_wm_q, style = "W", zero.policy = TRUE)
+
+death_acu_wm_q <- poly2nb(death_geo_acu_sp, queen=TRUE)
+death_acu_jan_wm_q <- poly2nb(death_geo_acu_jan_sp, queen=TRUE)
+death_acu_apr_wm_q <- poly2nb(death_geo_acu_apr_sp, queen=TRUE)
+death_acu_jul_wm_q <- poly2nb(death_geo_acu_jul_sp, queen=TRUE)
+death_acu_sep_wm_q <- poly2nb(death_geo_acu_sep_sp, queen=TRUE)
+
+rsd_acu_wm_q_w <- nb2listw(death_acu_wm_q, style = "W", zero.policy = TRUE)
+rsd_acu_jan_wm_q_w <- nb2listw(death_acu_jan_wm_q, style = "W", zero.policy = TRUE)
+rsd_acu_apr_wm_q_w <- nb2listw(death_acu_apr_wm_q, style = "W", zero.policy = TRUE)
+rsd_acu_jul_wm_q_w <- nb2listw(death_acu_jul_wm_q, style = "W", zero.policy = TRUE)
+rsd_acu_sep_wm_q_w <- nb2listw(death_acu_sep_wm_q, style = "W", zero.policy = TRUE)
+#str(rsd_wm_q_w)
+```
+
+### Fixed Matrix
+
+#### Confirmed Cases
+
+```{r}
+rsc_wm_d4_fix_w <- nb2listw(c_wm_d4, style = "W", zero.policy = TRUE)
+
+#str(rsc_wm_d4_fix_w)
+```
+
+#### Recovered Cases
+
+```{r}
+rsr_wm_d4_fix_w <- nb2listw(r_wm_d4, style = "W", zero.policy = TRUE)
+str(rsr_wm_d4_fix_w)
+```
+
+#### Death Cases
+
+```{r}
+rsd_wm_d5_fix_w <- nb2listw(d_wm_d5, style = "W", zero.policy = TRUE)
+str(rsd_wm_d5_fix_w)
+```
+
+### Adaptive Matrix 
+
+#### Confirmed Cases
+
+```{r}
+rsc_knn4_adap_w <- nb2listw(c_knn4, style = "W", zero.policy = TRUE)
+str(rsc_knn4_adap_w)
+rsc_knn4_adap_w
+```
+
+
+#### Recovered Cases
+
+```{r}
+rsr_knn4_adap_w <- nb2listw(r_knn4, style = "W", zero.policy = TRUE)
+str(rsr_knn4_adap_w)
+rsr_knn4_adap_w
+```
+
+
+#### Death Cases
+
+```{r}
+rsd_knn5_adap_w <- nb2listw(d_knn5, style = "W", zero.policy = TRUE)
+str(rsd_knn5_adap_w)
+rsd_knn5_adap_w
+```
+
+## nb2listw() Style = "B"
+
+### Rook Contiguity Based  Matrix
+
+#### Confirmed Cases
+
+```{r}
+rsc_wm_r_b <- nb2listw(confirmed_wm_r, style = "B", zero.policy = TRUE)
+str(rsc_wm_r_b)
+```
+
+#### Recovered Cases
+
+```{r}
+rsr_wm_r_b <- nb2listw(recovered_wm_r, style = "B", zero.policy = TRUE)
+str(rsr_wm_r_b)
+```
+
+#### Death Cases
+
+```{r}
+rsd_wm_r_b <- nb2listw(death_wm_r, style = "B", zero.policy = TRUE)
+str(rsd_wm_r_b)
+```
+
+### Queen Contiguity Based  Matrix
+
+#### Confirmed Cases
+
+```{r}
+rsc_wm_q_b <- nb2listw(confirmed_wm_q, style = "B", zero.policy = TRUE)
+str(rsc_wm_q_b)
+```
+
+#### Recovered Cases
+
+```{r}
+rsr_wm_q_b <- nb2listw(recovered_wm_q, style = "B", zero.policy = TRUE)
+str(rsr_wm_q_b)
+```
+
+#### Death Cases
+
+```{r}
+rsd_wm_q_b <- nb2listw(death_wm_q, style = "B", zero.policy = TRUE)
+str(rsd_wm_q_b)
+```
+
+### Fixed Matrix
+
+#### Confirmed Cases
+
+```{r}
+rsc_wm_d4_fix_b <- nb2listw(c_wm_d4, style = "B", zero.policy = TRUE)
+str(rsc_wm_d4_fix_b)
+```
+
+#### Recovered Cases
+
+```{r}
+rsr_wm_d4_fix_b <- nb2listw(r_wm_d4, style = "B", zero.policy = TRUE)
+str(rsr_wm_d4_fix_b)
+```
+
+#### Death Cases
+
+```{r}
+rsd_wm_d5_fix_b <- nb2listw(d_wm_d5, style = "B", zero.policy = TRUE)
+str(rsd_wm_d5_fix_b)
+```
+
+### Adaptive Matrix 
+
+#### Confirmed Cases
+
+```{r}
+rsc_knn4_adap_b <- nb2listw(c_knn4, style = "B", zero.policy = TRUE)
+str(rsc_knn4_adap_b)
+rsc_knn4_adap_b
+```
+
+
+#### Recovered Cases
+
+```{r}
+rsr_knn4_adap_b <- nb2listw(r_knn4, style = "B", zero.policy = TRUE)
+str(rsr_knn4_adap_b)
+rsr_knn4_adap_b
+```
+
+
+#### Death Cases
+
+```{r}
+rsd_knn5_adap_b <- nb2listw(d_knn5, style = "B", zero.policy = TRUE)
+str(rsd_knn5_adap_b)
+rsd_knn5_adap_b
+```
+
+# Local Moran's I
+
+# nb2listw Style = "W"
+
+## Rook contiguity based neighbours
+
+### Confirmed Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+c_fips <- order(confirmed_geo_sp$City_EN)
+c_localMI_r_w <- 
+  localmoran(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., 
+             rsc_wm_r_w)
+head(c_localMI_r_w)
+
+## Plotting Local Moran's I Statistics
+confirmed_geo_sp.c_localMI_r_w <- 
+  cbind(confirmed_geo_sp,c_localMI_r_w)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(confirmed_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(confirmed_geo_sp.c_localMI_r_w) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Recovered Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+r_fips <- order(recovered_geo_sp$City_EN)
+r_localMI_r_w <- 
+  localmoran(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             rsr_wm_r_w)
+head(r_localMI_r_w)
+
+## Plotting Local Moran's I Statistics
+recovered_geo_sp.r_localMI_r_w <- 
+  cbind(recovered_geo_sp,r_localMI_r_w)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(recovered_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(recovered_geo_sp.r_localMI_r_w) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Death Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+d_fips <- order(death_geo_sp$City_EN)
+d_localMI_r_w <- 
+  localmoran(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             rsd_wm_r_w)
+head(d_localMI_r_w)
+
+## Plotting Local Moran's I Statistics
+death_geo_sp.d_localMI_r_w <- cbind(death_geo_sp,d_localMI_r_w)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(death_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(death_geo_sp.d_localMI_r_w) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+## Queen contiguity based neighbours
+
+### Confirmed Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+c_fips <- order(confirmed_geo_sp$City_EN)
+c_localMI_q_w <- 
+  localmoran(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., 
+             rsc_wm_q_w)
+head(c_localMI_q_w)
+
+## Plotting Local Moran's I Statistics
+confirmed_geo_sp.c_localMI_q_w <- 
+  cbind(confirmed_geo_sp,c_localMI_q_w)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(confirmed_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(confirmed_geo_sp.c_localMI_q_w) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Recovered Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+r_fips <- order(recovered_geo_sp$City_EN)
+r_localMI_q_w <- 
+  localmoran(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             rsr_wm_q_w)
+head(r_localMI_q_w)
+
+## Plotting Local Moran's I Statistics
+recovered_geo_sp.r_localMI_q_w <- 
+  cbind(recovered_geo_sp,r_localMI_q_w)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(recovered_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(recovered_geo_sp.r_localMI_q_w) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Death Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+d_fips <- order(death_geo_sp$City_EN)
+d_localMI_q_w <- 
+  localmoran(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             rsd_wm_q_w)
+head(d_localMI_q_w)
+
+## Plotting Local Moran's I Statistics
+death_geo_sp.d_localMI_q_w <- cbind(death_geo_sp,d_localMI_q_w)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(death_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(death_geo_sp.d_localMI_q_w) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+
+## Fixed Distance Matrix
+
+### Confirmed Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+c_fips <- order(confirmed_geo_sp$City_EN)
+c_localMI_fix_w <- 
+  localmoran(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., 
+             rsc_wm_d4_fix_w)
+head(c_localMI_fix_w)
+
+## Plotting Local Moran's I Statistics
+confirmed_geo_sp.c_localMI_fix_w <- 
+  cbind(confirmed_geo_sp,c_localMI_fix_w)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(confirmed_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(confirmed_geo_sp.c_localMI_fix_w) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Recovered Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+r_fips <- order(recovered_geo_sp$City_EN)
+r_localMI_fix_w <- 
+  localmoran(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             rsr_wm_d4_fix_w)
+head(r_localMI_fix_w)
+
+## Plotting Local Moran's I Statistics
+recovered_geo_sp.r_localMI_fix_w <- 
+  cbind(recovered_geo_sp,r_localMI_fix_w)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(recovered_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(recovered_geo_sp.r_localMI_fix_w) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Death Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+d_fips <- order(death_geo_sp$City_EN)
+d_localMI_fix_w <- 
+  localmoran(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             rsd_wm_d5_fix_w)
+head(d_localMI_fix_w)
+
+## Plotting Local Moran's I Statistics
+death_geo_sp.d_localMI_fix_w <- cbind(death_geo_sp,d_localMI_fix_w)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(death_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(death_geo_sp.d_localMI_fix_w) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+## Adaptive Distance Matrix
+
+### Confirmed Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+c_fips <- order(confirmed_geo_sp$City_EN)
+c_localMI_adap_w <- 
+  localmoran(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., 
+             rsc_knn4_adap_w)
+head(c_localMI_adap_w)
+
+## Plotting Local Moran's I Statistics
+confirmed_geo_sp.c_localMI_adap_w <- 
+  cbind(confirmed_geo_sp,c_localMI_adap_w)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(confirmed_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(confirmed_geo_sp.c_localMI_adap_w) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Recovered Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+r_fips <- order(recovered_geo_sp$City_EN)
+r_localMI_adap_w <- 
+  localmoran(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             rsr_knn4_adap_w)
+head(r_localMI_adap_w)
+
+## Plotting Local Moran's I Statistics
+recovered_geo_sp.r_localMI_adap_w <- 
+  cbind(recovered_geo_sp,r_localMI_adap_w)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(recovered_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(recovered_geo_sp.r_localMI_adap_w) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Death Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+d_fips <- order(death_geo_sp$City_EN)
+d_localMI_adap_w <- 
+  localmoran(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             rsd_knn5_adap_w)
+head(d_localMI_adap_w)
+
+## Plotting Local Moran's I Statistics
+death_geo_sp.d_localMI_adap_w <- cbind(death_geo_sp,d_localMI_adap_w)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(death_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(death_geo_sp.d_localMI_adap_w) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+# nb2listw Style = "B"
+
+## Rook contiguity based neighbours
+
+### Confirmed Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+c_fips <- order(confirmed_geo_sp$City_EN)
+c_localMI_r_b <- 
+  localmoran(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., 
+             rsc_wm_r_b)
+head(c_localMI_r_b)
+
+## Plotting Local Moran's I Statistics
+confirmed_geo_sp.c_localMI_r_b <- 
+  cbind(confirmed_geo_sp,c_localMI_r_b)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(confirmed_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(confirmed_geo_sp.c_localMI_r_b) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Recovered Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+r_fips <- order(recovered_geo_sp$City_EN)
+r_localMI_r_b <- 
+  localmoran(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             rsr_wm_r_b)
+head(r_localMI_r_b)
+
+## Plotting Local Moran's I Statistics
+recovered_geo_sp.r_localMI_r_b <- 
+  cbind(recovered_geo_sp,r_localMI_r_b)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(recovered_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(recovered_geo_sp.r_localMI_r_b) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Death Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+d_fips <- order(death_geo_sp$City_EN)
+d_localMI_r_b <- 
+  localmoran(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             rsd_wm_r_b)
+head(d_localMI_r_b)
+
+## Plotting Local Moran's I Statistics
+death_geo_sp.d_localMI_r_b <- cbind(death_geo_sp,d_localMI_r_b)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(death_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(death_geo_sp.d_localMI_r_b) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+## Queen contiguity based neighbours
+
+### Confirmed Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+c_fips <- order(confirmed_geo_sp$City_EN)
+c_localMI_q_b <- 
+  localmoran(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., 
+             rsc_wm_q_b)
+head(c_localMI_q_b)
+
+## Plotting Local Moran's I Statistics
+confirmed_geo_sp.c_localMI_q_b <- 
+  cbind(confirmed_geo_sp,c_localMI_q_b)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(confirmed_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(confirmed_geo_sp.c_localMI_q_b) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Recovered Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+r_fips <- order(recovered_geo_sp$City_EN)
+r_localMI_q_b <- 
+  localmoran(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             rsr_wm_q_b)
+head(r_localMI_q_b)
+
+## Plotting Local Moran's I Statistics
+recovered_geo_sp.r_localMI_q_b <- 
+  cbind(recovered_geo_sp,r_localMI_q_b)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(recovered_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(recovered_geo_sp.r_localMI_q_b) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Death Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+d_fips <- order(death_geo_sp$City_EN)
+d_localMI_q_b <- 
+  localmoran(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             rsd_wm_q_b)
+head(d_localMI_q_b)
+
+## Plotting Local Moran's I Statistics
+death_geo_sp.d_localMI_q_b <- cbind(death_geo_sp,d_localMI_q_b)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(death_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(death_geo_sp.d_localMI_q_b) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+
+## Fixed Distance Matrix
+
+### Confirmed Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+c_fips <- order(confirmed_geo_sp$City_EN)
+c_localMI_fix_b <- 
+  localmoran(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., 
+             rsc_wm_d4_fix_b)
+head(c_localMI_fix_b)
+
+## Plotting Local Moran's I Statistics
+confirmed_geo_sp.c_localMI_fix_b <- 
+  cbind(confirmed_geo_sp,c_localMI_fix_b)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(confirmed_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(confirmed_geo_sp.c_localMI_fix_b) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Recovered Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+r_fips <- order(recovered_geo_sp$City_EN)
+r_localMI_fix_b <- 
+  localmoran(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             rsr_wm_d4_fix_b)
+head(r_localMI_fix_b)
+
+## Plotting Local Moran's I Statistics
+recovered_geo_sp.r_localMI_fix_b <- 
+  cbind(recovered_geo_sp,r_localMI_fix_b)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(recovered_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(recovered_geo_sp.r_localMI_fix_b) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Death Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+d_fips <- order(death_geo_sp$City_EN)
+d_localMI_fix_b <- 
+  localmoran(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             rsd_wm_d5_fix_b)
+head(d_localMI_fix_b)
+
+## Plotting Local Moran's I Statistics
+death_geo_sp.d_localMI_fix_b <- cbind(death_geo_sp,d_localMI_fix_b)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(death_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(death_geo_sp.d_localMI_fix_b) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+## Adaptive Distance Matrix
+
+### Confirmed Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+c_fips <- order(confirmed_geo_sp$City_EN)
+c_localMI_adap_b <- 
+  localmoran(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., 
+             rsc_knn4_adap_b)
+head(c_localMI_adap_b)
+
+## Plotting Local Moran's I Statistics
+confirmed_geo_sp.c_localMI_adap_b <- 
+  cbind(confirmed_geo_sp,c_localMI_adap_b)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(confirmed_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(confirmed_geo_sp.c_localMI_adap_b) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Recovered Cases
+
+#### Calculating Local Moran
+
+```{r}
+## Computing Local Moran's I
+r_fips <- order(recovered_geo_sp$City_EN)
+r_localMI_adap_b <- 
+  localmoran(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             rsr_knn4_adap_b)
+head(r_localMI_adap_b)
+
+## Plotting Local Moran's I Statistics
+recovered_geo_sp.r_localMI_adap_b <- 
+  cbind(recovered_geo_sp,r_localMI_adap_b)
+```
+
+#### Plot local moran
+
+```{r}
+tm_shape(recovered_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(recovered_geo_sp.r_localMI_adap_b) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+### Death Cases
+
+#### Calculating Local Moran
+```{r}
+## Computing Local Moran's I
+d_fips <- order(death_geo_sp$City_EN)
+d_localMI_adap_b <- 
+  localmoran(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             rsd_knn5_adap_b)
+head(d_localMI_adap_b)
+
+## Plotting Local Moran's I Statistics
+death_geo_sp.d_localMI_adap_b <- cbind(death_geo_sp,d_localMI_adap_b)
+```
+
+#### Plot local moran
+```{r}
+tm_shape(death_geo_sf_sum) +
+    tm_polygons()+
+  tm_shape(death_geo_sp.d_localMI_adap_b) +
+    tm_fill(col = "Ii", 
+            style = "pretty",
+            palette = "RdBu") +
+    tm_layout(main.title = "local moran statistics",
+              main.title.position = "center",
+              main.title.size = 1,
+              legend.height = 0.40, 
+              legend.width = 0.35,
+              legend.outside = TRUE,
+              legend.outside.size = 0.2,
+              legend.outside.position = c("right", "bottom"),
+              frame = TRUE) +
+    tm_borders(alpha = 0.5)
+```
+
+# LISA Cluster Map
+
+The LISA Cluster Map shows the significant locations color coded by type of spatial autocorrelation.
+
+## Plotting the Moran Scatterplot with Standardised variable
+
+### Fixed Matrix
+Set Weights Matrix allowing for no-neighbor areas
+```{r}
+set.ZeroPolicyOption(TRUE)
+```
+
+#### Scatter Plot of Fixed Matrix for Confirmed Cases
+```{r}
+c_nci_fix_b <- moran.plot(
+  confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+  rsc_wm_d4_fix_b,
+  labels=as.character(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.), xlab="Covid 19 Confirmed Rate",
+                  ylab="Spatially Lag Covid 19 Confirmed Rate")
+```
+
+Next, Using scale() to centers and scales the variable which is done by subtracting the mean (omitting NAs) the corresponding columns, and scaling is done by dividing the (centered) variable by their standard deviations. And as.vector() added to the end is to make sure that the data type we get out of this is a vector, that map neatly into out dataframe.
+```{r}
+recovered_geo_sp$Z.CovidConfirmedRate <- scale(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.) %>% as.vector()
+
+r_nci2_fix_b <- moran.plot(recovered_geo_sp$Z.CovidConfirmedRate,
+                  rsc_wm_d4_fix_b,
+                  labels=as.character(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.), xlab="z-Covid 19 Confirmed Rate",
+                  ylab="z-Spatially Lag Covid 19 Confirmed Rate")
+```
+
+#### Lisa map for Confirmed
+```{r}
+c_quadrant_fix_b <- vector(mode="numeric",length=nrow(c_localMI_fix_b))
+DV <- recovered_geo_sp$Z.CovidConfirmedRate - mean(recovered_geo_sp$Z.CovidConfirmedRate)     
+C_mI <- c_localMI_fix_b[,1] - mean(c_localMI_fix_b[,1])    
+signif <- 0.05       
+c_quadrant_fix_b[DV >0 & C_mI>0] <- 4      
+c_quadrant_fix_b[DV <0 & C_mI<0] <- 1      
+c_quadrant_fix_b[DV <0 & C_mI>0] <- 2
+c_quadrant_fix_b[DV >0 & C_mI<0] <- 3
+c_quadrant_fix_b[c_localMI_fix_b[,5]>signif] <- 0
+
+confirmed_geo_sp.c_localMI_fix_b$quadrant <- c_quadrant_fix_b
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(confirmed_geo_sp.c_localMI_fix_b) +
+  tm_fill(col = "quadrant", style = "cat", palette = colors[c(sort(unique(c_quadrant_fix_b)))+1], labels = clusters[c(sort(unique(c_quadrant_fix_b)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+#### Scatter Plot of Fixed Matrix for Recovered Cases
+```{r}
+r_nci_fix_b <- moran.plot(
+  recovered_geo_sp$Covid.19.recovered.rate..Per.10.000.,
+  rsr_wm_d4_fix_b,
+  labels=as.character(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000.), xlab="Covid 19 Recovered Rate",
+                  ylab="Spatially Lag Covid 19 Recovered Rate")
+```
+
+```{r}
+recovered_geo_sp$Z.CovidRecoveredRate <- scale(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000.) %>% as.vector()
+
+r_nci2_adap_b <- moran.plot(recovered_geo_sp$Z.CovidRecoveredRate,
+                  rsr_wm_d4_fix_b,
+                  labels=as.character(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000.), xlab="z-Covid 19 Recovered Rate",
+                  ylab="z-Spatially Lag Covid 19 Recovered Rate")
+```
+
+#### Lisa map for Recovered
+```{r}
+r_quadrant_fix_b <- vector(mode="numeric",length=nrow(r_localMI_fix_b))
+DV <- recovered_geo_sp$Z.CovidRecoveredRate - mean(recovered_geo_sp$Z.CovidRecoveredRate)     
+C_mI <- r_localMI_fix_b[,1] - mean(r_localMI_fix_b[,1])    
+signif <- 0.05       
+r_quadrant_fix_b[DV >0 & C_mI>0] <- 4      
+r_quadrant_fix_b[DV <0 & C_mI<0] <- 1      
+r_quadrant_fix_b[DV <0 & C_mI>0] <- 2
+r_quadrant_fix_b[DV >0 & C_mI<0] <- 3
+r_quadrant_fix_b[r_localMI_fix_b[,5]>signif] <- 0
+
+recovered_geo_sp.r_localMI_fix_b$quadrant <- r_quadrant_fix_b
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+#palette = colors[c(sort(unique(r_quadrant_fix_b)))+1]
+tm_shape(recovered_geo_sp.r_localMI_fix_b) +
+  tm_fill(col = "quadrant", style = "cat", palette = colors[c(sort(unique(r_quadrant_fix_b)))+1], labels = clusters[c(sort(unique(r_quadrant_fix_b)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+#### Scatter Plot of Fixed Matrix for Death Cases
+```{r}
+d_nci_adap_b <- moran.plot(death_geo_sp$Covid.19.death.rate..Per.10.000.,
+                  rsd_knn5_adap_b,
+                  labels=as.character(death_geo_sp$Covid.19.death.rate..Per.10.000.), xlab="Covid 19 Death Rate",
+                  ylab="Spatially Lag Covid 19 Death Rate")
+```
+
+```{r}
+death_geo_sp$Z.CovidDeathRate <- scale(death_geo_sp$Covid.19.death.rate..Per.10.000.) %>% as.vector()
+
+d_nci2_adap_b <- moran.plot(death_geo_sp$Z.CovidDeathRate,
+                  rsd_knn5_adap_b,
+                  labels=as.character(death_geo_sp$Covid.19.death.rate..Per.10.000.), xlab="z-Covid 19 Death Rate",
+                  ylab="z-Spatially Lag Covid 19 Death Rate")
+```
+
+#### Lisa map for Death Cases
+```{r}
+d_quadrant_adap_b <- vector(mode="numeric",length=nrow(d_localMI_adap_b))
+DV <- death_geo_sp$Covid.19.death.rate..Per.10.000. - mean(death_geo_sp$Covid.19.death.rate..Per.10.000.)     
+C_mI <- d_localMI_adap_b[,1] - mean(d_localMI_adap_b[,1])    
+signif <- 0.05       
+d_quadrant_adap_b[DV >0 & C_mI>0] <- 4      
+d_quadrant_adap_b[DV <0 & C_mI<0] <- 1      
+d_quadrant_adap_b[DV <0 & C_mI>0] <- 2
+d_quadrant_adap_b[DV >0 & C_mI<0] <- 3
+d_quadrant_adap_b[d_localMI_adap_b[,5]>signif] <- 0
+
+death_geo_sp.d_localMI_adap_b$quadrant <- d_quadrant_adap_b
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(death_geo_sp.d_localMI_adap_b) +
+  tm_fill(col = "quadrant", style = "cat", palette = colors[c(sort(unique(d_quadrant_adap_b)))+1], labels = clusters[c(sort(unique(d_quadrant_adap_b)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+
+```
+
+## Deriving distance-based weight matrix with a new set of neighbours.
+
+### Adaptive Matrix
+#### Scatter Plot of Fixed Matrix for Confirmed Cases
+```{r}
+c_nci_adap_b <- moran.plot(
+  confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+  rsc_knn4_adap_b,
+  labels=as.character(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.), xlab="Covid 19 Confirmed Rate",
+                  ylab="Spatially Lag Covid 19 Confirmed Rate")
+```
+
+```{r}
+recovered_geo_sp$Z.CovidConfirmedRate <- scale(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.) %>% as.vector()
+
+r_nci2_adap_b <- moran.plot(recovered_geo_sp$Z.CovidConfirmedRate,
+                  rsc_knn4_adap_b,
+                  labels=as.character(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.), xlab="z-Covid 19 Confirmed Rate",
+                  ylab="z-Spatially Lag Covid 19 Confirmed Rate")
+```
+
+#### Lisa map for Confirmed
+```{r}
+c_quadrant_adap_b <- vector(mode="numeric",length=nrow(c_localMI_adap_b))
+DV <- recovered_geo_sp$Z.CovidConfirmedRate - mean(recovered_geo_sp$Z.CovidConfirmedRate)     
+C_mI <- c_localMI_adap_b[,1] - mean(c_localMI_adap_b[,1])    
+signif <- 0.05       
+c_quadrant_adap_b[DV >0 & C_mI>0] <- 4      
+c_quadrant_adap_b[DV <0 & C_mI<0] <- 1      
+c_quadrant_adap_b[DV <0 & C_mI>0] <- 2
+c_quadrant_adap_b[DV >0 & C_mI<0] <- 3
+c_quadrant_adap_b[c_localMI_adap_b[,5]>signif] <- 0
+
+confirmed_geo_sp.c_localMI_adap_b$quadrant <- c_quadrant_adap_b
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(confirmed_geo_sp.c_localMI_adap_b) +
+  tm_fill(col = "quadrant", style = "cat", palette = colors[c(sort(unique(c_quadrant_adap_b)))+1], labels = clusters[c(sort(unique(c_quadrant_adap_b)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+#### Scatter Plot of Fixed Matrix for Recovered Cases
+```{r}
+r_nci_adap_b <- moran.plot(
+  recovered_geo_sp$Covid.19.recovered.rate..Per.10.000.,
+  rsr_knn4_adap_b,
+  labels=as.character(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000.), xlab="Covid 19 Recovered Rate",
+                  ylab="Spatially Lag Covid 19 Recovered Rate")
+```
+
+```{r}
+recovered_geo_sp$Z.CovidRecoveredRate <- scale(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000.) %>% as.vector()
+
+r_nci2_adap_b <- moran.plot(recovered_geo_sp$Z.CovidRecoveredRate,
+                  rsr_knn4_adap_b,
+                  labels=as.character(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000.), xlab="z-Covid 19 Recovered Rate",
+                  ylab="z-Spatially Lag Covid 19 Recovered Rate")
+```
+
+#### Lisa map for Recovered
+```{r}
+r_quadrant_adap_b <- vector(mode="numeric",length=nrow(r_localMI_adap_b))
+DV <- recovered_geo_sp$Z.CovidRecoveredRate - mean(recovered_geo_sp$Z.CovidRecoveredRate)     
+C_mI <- r_localMI_adap_b[,1] - mean(r_localMI_adap_b[,1])    
+signif <- 0.05       
+d_quadrant_adap_b[DV >0 & C_mI>0] <- 4      
+d_quadrant_adap_b[DV <0 & C_mI<0] <- 1      
+d_quadrant_adap_b[DV <0 & C_mI>0] <- 2
+d_quadrant_adap_b[DV >0 & C_mI<0] <- 3
+d_quadrant_adap_b[r_localMI_adap_b[,5]>signif] <- 0
+
+recovered_geo_sp.r_localMI_adap_b$quadrant <- r_quadrant_adap_b
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(recovered_geo_sp.r_localMI_adap_b) +
+  tm_fill(col = "quadrant", style = "cat", palette = colors[c(sort(unique(r_quadrant_adap_b)))+1], labels = clusters[c(sort(unique(r_quadrant_adap_b)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+
+```
+
+#### Scatter Plot of Fixed Matrix for Death Cases
+```{r}
+d_nci_adap_b <- moran.plot(death_geo_sp$Covid.19.death.rate..Per.10.000.,
+                  rsd_knn5_adap_b,
+                  labels=as.character(death_geo_sp$Covid.19.death.rate..Per.10.000.), xlab="Covid 19 Death Rate",
+                  ylab="Spatially Lag Covid 19 Death Rate")
+```
+
+```{r}
+death_geo_sp$Z.CovidDeathRate <- scale(death_geo_sp$Covid.19.death.rate..Per.10.000.) %>% as.vector()
+
+d_nci2_adap_b <- moran.plot(death_geo_sp$Z.CovidDeathRate,
+                  rsd_knn5_adap_b,
+                  labels=as.character(death_geo_sp$Covid.19.death.rate..Per.10.000.), xlab="z-Covid 19 Death Rate",
+                  ylab="z-Spatially Lag Covid 19 Death Rate")
+```
+
+#### Lisa map for Death
+```{r}
+d_quadrant_adap_b <- vector(mode="numeric",length=nrow(d_localMI_adap_b))
+DV <- death_geo_sp$Covid.19.death.rate..Per.10.000. - mean(death_geo_sp$Covid.19.death.rate..Per.10.000.)     
+C_mI <- d_localMI_adap_b[,1] - mean(d_localMI_adap_b[,1])    
+signif <- 0.05       
+d_quadrant_adap_b[DV >0 & C_mI>0] <- 4 
+d_quadrant_adap_b[DV <0 & C_mI<0] <- 1      
+d_quadrant_adap_b[DV <0 & C_mI>0] <- 2
+d_quadrant_adap_b[DV >0 & C_mI<0] <- 3
+d_quadrant_adap_b[d_localMI_adap_b[,5]>signif] <- 0
+
+death_geo_sp.d_localMI_adap_b$quadrant <- d_quadrant_adap_b
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(death_geo_sp.d_localMI_adap_b) +
+  tm_fill(col = "quadrant", style = "cat", palette = colors[c(sort(unique(d_quadrant_adap_b)))+1], labels = clusters[c(sort(unique(d_quadrant_adap_b)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+# Lisa Clustering for Cumulative Cases
+
+## Scatter Plot and LISA Cluster Map
+
+### Scatter Plot for Confirmed Cumulative Cases
+
+#### Month of Jan 2020 
+```{r}
+c_acu_jan_nci <- moran.plot(
+  confirmed_geo_acu_jan_sp$confirmed_cumul_count,
+  rsc_acu_jan_wm_q_w,
+  labels=as.character(confirmed_geo_acu_jan_sp$City_EN), xlab="Covid 19 Confirmed Cumulative",
+                  ylab="Spatially Lag Covid 19 Confirmed Cumulative of the Month Jan")
+```
+
+#### Month of Apr 2020 
+```{r}
+c_acu_apr_nci <- moran.plot(
+  confirmed_geo_acu_apr_sp$confirmed_cumul_count,
+  rsc_acu_apr_wm_q_w,
+  labels=as.character(confirmed_geo_acu_apr_sp$City_EN), xlab="Covid 19 Confirmed Cumulative",
+                  ylab="Spatially Lag Covid 19 Confirmed Cumulative of the Month Apr")
+```
+
+#### Month of Jul 2020 
+```{r}
+c_acu_jul_nci <- moran.plot(
+  confirmed_geo_acu_jul_sp$confirmed_cumul_count,
+  rsc_acu_jul_wm_q_w,
+  labels=as.character(confirmed_geo_acu_jul_sp$City_EN), xlab="Covid 19 Confirmed Cumulative",
+                  ylab="Spatially Lag Covid 19 Confirmed Cumulative of the Month Jul")
+```
+
+#### Month of Sep 2020 
+```{r}
+c_acu_sep_nci <- moran.plot(
+  confirmed_geo_acu_sep_sp$confirmed_cumul_count,
+  rsc_acu_sep_wm_q_w,
+  labels=as.character(confirmed_geo_acu_sep_sp$City_EN), xlab="Covid 19 Confirmed Cumulative",
+                  ylab="Spatially Lag Covid 19 Confirmed Cumulative of the Month Sep")
+```
+
+
+#### Month of Jan - Sept 2020 months
+```{r}
+c_acu_nci <- moran.plot(
+  confirmed_geo_acu_sp$confirmed_cumul_count,
+  rsc_acu_wm_q_w,
+  labels=as.character(confirmed_geo_acu_sp$City_EN), xlab="Covid 19 Confirmed Cumulative of the Month Jan to Sep",
+                  ylab="Spatially Lag Covid 19 Confirmed Cumulative")
+```
+ 
+### Scatter Plot for Recovered Cumulative Cases
+
+#### Month of January 2020 
+```{r}
+r_acu_jan_nci <- moran.plot(
+  recovered_geo_acu_jan_sp$recovered_cumul_count,
+  rsr_acu_jan_wm_q_w,
+  labels=as.character(recovered_geo_acu_jan_sp$City_EN), xlab="Covid 19 Recovered Cumulative",
+                  ylab="Spatially Lag Covid 19 Recovered Cumulative")
+```
+
+#### Month of April 2020 
+```{r}
+r_acu_apr_nci <- moran.plot(
+  recovered_geo_acu_apr_sp$recovered_cumul_count,
+  rsr_acu_apr_wm_q_w,
+  labels=as.character(recovered_geo_acu_apr_sp$City_EN), xlab="Covid 19 Recovered Cumulative",
+                  ylab="Spatially Lag Covid 19 Recovered Cumulative")
+``` 
+
+#### Month of July 2020 
+```{r}
+r_acu_jan_nci <- moran.plot(
+  recovered_geo_acu_jan_sp$recovered_cumul_count,
+  rsr_acu_jan_wm_q_w,
+  labels=as.character(recovered_geo_acu_jan_sp$City_EN), xlab="Covid 19 Recovered Cumulative",
+                  ylab="Spatially Lag Covid 19 Recovered Cumulative")
+```
+
+#### Month of September 2020 
+```{r}
+r_acu_apr_nci <- moran.plot(
+  recovered_geo_acu_apr_sp$recovered_cumul_count,
+  rsr_acu_apr_wm_q_w,
+  labels=as.character(recovered_geo_acu_apr_sp$City_EN), xlab="Covid 19 Recovered Cumulative",
+                  ylab="Spatially Lag Covid 19 Recovered Cumulative")
+``` 
+
+#### Month of Jan - Sept 2020 months
+```{r}
+r_acu_nci <- moran.plot(
+  recovered_geo_acu_sp$recovered_cumul_count,
+  rsr_acu_wm_q_w,
+  labels=as.character(recovered_geo_acu_sp$City_EN), xlab="Covid 19 Recovered Cumulative of the Month Jan to Sep",
+                  ylab="Spatially Lag Covid 19 Recovered Cumulative")
+```
+
+### Scatter Plot for Death Cumulative Cases
+
+#### Month of January 2020 
+```{r}
+d_acu_jan_nci <- moran.plot(
+  death_geo_acu_jan_sp$death_cumul_count,
+  rsd_acu_jan_wm_q_w,
+  labels=as.character(death_geo_acu_jan_sp$City_EN), xlab="Covid 19 Death Cumulative",
+                  ylab="Spatially Lag Covid 19 Death Cumulative")
+```
+
+#### Month of April 2020 
+```{r}
+d_acu_apr_nci <- moran.plot(
+  death_geo_acu_apr_sp$death_cumul_count,
+  rsd_acu_apr_wm_q_w,
+  labels=as.character(death_geo_acu_apr_sp$City_EN), xlab="Covid 19 Death Cumulative",
+                  ylab="Spatially Lag Covid 19 Death Cumulative")
+```
+
+#### Month of July 2020 
+```{r}
+d_acu_jan_nci <- moran.plot(
+  death_geo_acu_jan_sp$death_cumul_count,
+  rsd_acu_jan_wm_q_w,
+  labels=as.character(death_geo_acu_jan_sp$City_EN), xlab="Covid 19 Death Cumulative",
+                  ylab="Spatially Lag Covid 19 Death Cumulative")
+```
+
+#### Month of September 2020 
+```{r}
+d_acu_apr_nci <- moran.plot(
+  death_geo_acu_apr_sp$death_cumul_count,
+  rsd_acu_apr_wm_q_w,
+  labels=as.character(death_geo_acu_apr_sp$City_EN), xlab="Covid 19 Death Cumulative",
+                  ylab="Spatially Lag Covid 19 Death Cumulative")
+```
+
+#### Month of Jan - Sept 2020 months
+```{r}
+d_acu_nci <- moran.plot(
+  death_geo_acu_sp$death_cumul_count,
+  rsd_acu_wm_q_w,
+  labels=as.character(death_geo_acu_sp$City_EN), xlab="Covid 19 Death Cumulative of the Month Jan to Sep",
+                  ylab="Spatially Lag Covid 19 Death Cumulative")
+```
+ 
+### Lisa map for Confirmed Cumulative Cases
+
+#### Calculating Local Moran of Confirmed Cumulative Cases
+
+##### For Confirmed Cumulative of the Month January
+```{r}
+## Computing Local Moran's I
+c_jan_fips <- order(confirmed_geo_acu_jan_sp$City_EN)
+c_jan_localMI <- 
+  localmoran(confirmed_geo_acu_jan_sp$confirmed_cumul_count, 
+             rsc_acu_jan_wm_q_w)
+
+#head(c_jan_localMI)
+#printCoefmat(data.frame(c_jan_localMI[c_jan_fips,], row.names=confirmed_geo_acu_jan_sp$City_EN[c_jan_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Confirmed Cases SpatialPolygonDataFrame.
+confirmed_geo_acu_jan_sp.c_jan_localMI <- 
+  cbind(confirmed_geo_acu_jan_sp,c_jan_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+confirmed_geo_acu_jan_sp.c_jan_localMI.map <- tm_shape(confirmed_geo_acu_jan_sp.c_jan_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Confirmed Cumulative of Month Jan") +
+  tm_borders(alpha = 0.5)
+
+confirmed_geo_acu_jan_sp.c_jan_localMI.pvalue.map <- tm_shape(confirmed_geo_acu_jan_sp.c_jan_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Confirmed Cumulative of Month Jan") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(confirmed_geo_acu_jan_sp.c_jan_localMI.map, confirmed_geo_acu_jan_sp.c_jan_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+##### For Confirmed Cumulative of the Month April
+```{r}
+## Computing Local Moran's I
+c_apr_fips <- order(confirmed_geo_acu_apr_sp$City_EN)
+c_apr_localMI <- 
+  localmoran(confirmed_geo_acu_apr_sp$confirmed_cumul_count, 
+             rsc_acu_apr_wm_q_w)
+
+#head(c_apr_localMI)
+#printCoefmat(data.frame(c_apr_localMI[c_apr_fips,], row.names=confirmed_geo_acu_apr_sp$City_EN[c_apr_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Confirmed Cases SpatialPolygonDataFrame.
+confirmed_geo_acu_apr_sp.c_apr_localMI <- 
+  cbind(confirmed_geo_acu_apr_sp,c_apr_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+confirmed_geo_acu_apr_sp.c_apr_localMI.map <- tm_shape(confirmed_geo_acu_apr_sp.c_apr_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Confirmed Cumulative of Month Apr") +
+  tm_borders(alpha = 0.5)
+
+confirmed_geo_acu_apr_sp.c_apr_localMI.pvalue.map <- tm_shape(confirmed_geo_acu_apr_sp.c_apr_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Confirmed Cumulative of Month Apr") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(confirmed_geo_acu_apr_sp.c_apr_localMI.map, confirmed_geo_acu_apr_sp.c_apr_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+##### For Confirmed Cumulative of the Month July
+```{r}
+## Computing Local Moran's I
+c_jul_fips <- order(confirmed_geo_acu_jul_sp$City_EN)
+c_jul_localMI <- 
+  localmoran(confirmed_geo_acu_jul_sp$confirmed_cumul_count, 
+             rsc_acu_jul_wm_q_w)
+
+#head(c_jul_localMI)
+#printCoefmat(data.frame(c_jul_localMI[c_jul_fips,], row.names=confirmed_geo_acu_jul_sp$City_EN[c_jul_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Confirmed Cases SpatialPolygonDataFrame.
+confirmed_geo_acu_jul_sp.c_jul_localMI <- 
+  cbind(confirmed_geo_acu_jul_sp,c_jul_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+confirmed_geo_acu_jul_sp.c_jul_localMI.map <- tm_shape(confirmed_geo_acu_jul_sp.c_jul_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Confirmed Cumulative of Month Jul") +
+  tm_borders(alpha = 0.5)
+
+confirmed_geo_acu_jul_sp.c_jul_localMI.pvalue.map <- tm_shape(confirmed_geo_acu_jul_sp.c_jul_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Confirmed Cumulative of Month Jul") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(confirmed_geo_acu_jul_sp.c_jul_localMI.map, confirmed_geo_acu_jul_sp.c_jul_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+##### For Confirmed Cumulative of the Month September
+```{r}
+## Computing Local Moran's I
+c_sep_fips <- order(confirmed_geo_acu_sep_sp$City_EN)
+c_sep_localMI <- 
+  localmoran(confirmed_geo_acu_sep_sp$confirmed_cumul_count, 
+             rsc_acu_sep_wm_q_w)
+
+#head(c_sep_localMI)
+#printCoefmat(data.frame(c_sep_localMI[c_sep_fips,], row.names=confirmed_geo_acu_sep_sp$City_EN[c_sep_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Confirmed Cases SpatialPolygonDataFrame.
+confirmed_geo_acu_sep_sp.c_sep_localMI <- 
+  cbind(confirmed_geo_acu_sep_sp,c_sep_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+confirmed_geo_acu_sep_sp.c_sep_localMI.map <- tm_shape(confirmed_geo_acu_sep_sp.c_sep_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Confirmed Cumulative of Month Sep") +
+  tm_borders(alpha = 0.5)
+
+confirmed_geo_acu_sep_sp.c_sep_localMI.pvalue.map <- tm_shape(confirmed_geo_acu_sep_sp.c_sep_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Confirmed Cumulative of Month Sep") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(confirmed_geo_acu_sep_sp.c_sep_localMI.map, confirmed_geo_acu_sep_sp.c_sep_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+
+##### For Confirmed Cumulative of the Month from January to September
+```{r}
+## Computing Local Moran's I
+c_acu_fips <- order(confirmed_geo_acu_sp$City_EN)
+c_localMI<- 
+  localmoran(confirmed_geo_acu_sp$confirmed_cumul_count, 
+             rsc_acu_wm_q_w)
+
+#head(c_localMI_adap_b)
+#printCoefmat(data.frame(c_localMI[c_acu_fips,], row.names=confirmed_geo_acu_sp$City_EN[c_acu_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Confirmed Cases SpatialPolygonDataFrame.
+confirmed_geo_acu_sp.c_localMI <- 
+  cbind(confirmed_geo_acu_sp,c_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+confirmed_geo_acu_sp.c_localMI.map <- tm_shape(confirmed_geo_acu_sp.c_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Confirmed Cumulative of Month of Jan to Sep") +
+  tm_borders(alpha = 0.5)
+
+confirmed_geo_acu_sp.c_localMI.pvalue.map <- tm_shape(confirmed_geo_acu_sp.c_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Confirmed Cumulative of Month of Jan to Sep") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(confirmed_geo_acu_sp.c_localMI.map, confirmed_geo_acu_sp.c_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+#### Calculating Local Moran of Recovered Cumulative Cases
+
+##### For Recovered Cumulative of the Month January
+```{r}
+## Computing Local Moran's I
+r_jan_fips <- order(recovered_geo_acu_jan_sp$City_EN)
+r_jan_localMI <- 
+  localmoran(recovered_geo_acu_jan_sp$recovered_cumul_count, 
+             rsr_acu_jan_wm_q_w)
+
+#head(c_jan_localMI)
+#printCoefmat(data.frame(r_jan_localMI[r_jan_fips,], row.names=recovered_geo_acu_jan_sp$City_EN[r_jan_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Recovered Cases SpatialPolygonDataFrame.
+recovered_geo_acu_jan_sp.r_jan_localMI <- 
+  cbind(recovered_geo_acu_jan_sp,r_jan_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+recovered_geo_acu_jan_sp.r_jan_localMI.map <- tm_shape(recovered_geo_acu_jan_sp.r_jan_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Recovered Cumulative of Month Jan") +
+  tm_borders(alpha = 0.5)
+
+recovered_geo_acu_jan_sp.r_jan_localMI.pvalue.map <- tm_shape(recovered_geo_acu_jan_sp.r_jan_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Recovered Cumulative of Month Jan") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(recovered_geo_acu_jan_sp.r_jan_localMI.map, recovered_geo_acu_jan_sp.r_jan_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+##### For Recovered Cumulative of the Month April
+```{r}
+## Computing Local Moran's I
+r_apr_fips <- order(recovered_geo_acu_apr_sp$City_EN)
+r_apr_localMI <- 
+  localmoran(recovered_geo_acu_apr_sp$recovered_cumul_count, 
+             rsr_acu_apr_wm_q_w)
+
+#head(r_apr_localMI)
+#printCoefmat(data.frame(r_apr_localMI[r_apr_fips,], row.names=recovered_geo_acu_apr_sp$City_EN[r_apr_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Recovered Cases SpatialPolygonDataFrame.
+recovered_geo_acu_apr_sp.r_apr_localMI <- 
+  cbind(recovered_geo_acu_apr_sp,r_apr_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+recovered_geo_acu_apr_sp.r_apr_localMI.map <- tm_shape(recovered_geo_acu_apr_sp.r_apr_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Recovered Cumulative of Month Apr") +
+  tm_borders(alpha = 0.5)
+
+recovered_geo_acu_apr_sp.r_apr_localMI.pvalue.map <- tm_shape(recovered_geo_acu_apr_sp.r_apr_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Recovered Cumulative of Month Apr") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(recovered_geo_acu_apr_sp.r_apr_localMI.map, recovered_geo_acu_apr_sp.r_apr_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+##### For Recovered Cumulative of the Month July
+```{r}
+## Computing Local Moran's I
+r_jul_fips <- order(recovered_geo_acu_jul_sp$City_EN)
+r_jul_localMI <- 
+  localmoran(recovered_geo_acu_jul_sp$recovered_cumul_count, 
+             rsr_acu_jul_wm_q_w)
+
+#head(r_jul_localMI)
+#printCoefmat(data.frame(r_jul_localMI[r_jul_fips,], row.names=recovered_geo_acu_jul_sp$City_EN[r_jul_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Recovered Cases SpatialPolygonDataFrame.
+recovered_geo_acu_jul_sp.r_jul_localMI <- 
+  cbind(recovered_geo_acu_jul_sp,r_jul_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+recovered_geo_acu_jul_sp.r_jul_localMI.map <- tm_shape(recovered_geo_acu_jul_sp.r_jul_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Recovered Cumulative of Month Jul") +
+  tm_borders(alpha = 0.5)
+
+recovered_geo_acu_jul_sp.r_jul_localMI.pvalue.map <- tm_shape(recovered_geo_acu_jul_sp.r_jul_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Recovered Cumulative of Month Jul") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(recovered_geo_acu_jul_sp.r_jul_localMI.map, recovered_geo_acu_jul_sp.r_jul_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+##### For Recovered Cumulative of the Month September
+```{r}
+## Computing Local Moran's I
+r_sep_fips <- order(recovered_geo_acu_sep_sp$City_EN)
+r_sep_localMI <- 
+  localmoran(recovered_geo_acu_sep_sp$recovered_cumul_count, 
+             rsr_acu_sep_wm_q_w)
+
+#head(r_sep_localMI)
+#printCoefmat(data.frame(r_sep_localMI[r_sep_fips,], row.names=recovered_geo_acu_sep_sp$City_EN[r_sep_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Recovered Cases SpatialPolygonDataFrame.
+recovered_geo_acu_sep_sp.r_sep_localMI <- 
+  cbind(recovered_geo_acu_sep_sp,r_sep_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+recovered_geo_acu_sep_sp.r_sep_localMI.map <- tm_shape(recovered_geo_acu_sep_sp.r_sep_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Recovered Cumulative of Month Sep") +
+  tm_borders(alpha = 0.5)
+
+recovered_geo_acu_sep_sp.r_sep_localMI.pvalue.map <- tm_shape(recovered_geo_acu_sep_sp.r_sep_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Recovered Cumulative of Month Sep") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(recovered_geo_acu_sep_sp.r_sep_localMI.map, recovered_geo_acu_sep_sp.r_sep_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+##### For Recovered Cumulative of the Month from January to September
+```{r}
+## Computing Local Moran's I
+r_acu_fips <- order(recovered_geo_acu_sp$City_EN)
+r_localMI<- 
+  localmoran(recovered_geo_acu_sp$recovered_cumul_count, 
+             rsr_acu_wm_q_w)
+
+#head(r_localMI_adap_b)
+#printCoefmat(data.frame(r_localMI[r_acu_fips,], row.names=recovered_geo_acu_sp$City_EN[r_acu_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Recovered Cases SpatialPolygonDataFrame.
+recovered_geo_acu_sp.r_localMI <- 
+  cbind(recovered_geo_acu_sp,r_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+recovered_geo_acu_sp.r_localMI.map <- tm_shape(recovered_geo_acu_sp.r_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Recovered Cumulative of Month of Jan to Sep") +
+  tm_borders(alpha = 0.5)
+
+recovered_geo_acu_sp.r_localMI.pvalue.map <- tm_shape(recovered_geo_acu_sp.r_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Recovered Cumulative of Month of Jan to Sep") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(recovered_geo_acu_sp.r_localMI.map, recovered_geo_acu_sp.r_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+#### Calculating Local Moran of Death Cumulative Cases
+
+##### For Death Cumulative of the Month January
+```{r}
+## Computing Local Moran's I
+d_jan_fips <- order(death_geo_acu_jan_sp$City_EN)
+d_jan_localMI <- 
+  localmoran(death_geo_acu_jan_sp$death_cumul_count, 
+             rsd_acu_jan_wm_q_w)
+
+#head(c_jan_localMI)
+#printCoefmat(data.frame(d_jan_localMI[d_jan_fips,], row.names=recovered_geo_acu_jan_sp$City_EN[d_jan_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Death Cases SpatialPolygonDataFrame.
+death_geo_acu_jan_sp.d_jan_localMI <- 
+  cbind(death_geo_acu_jan_sp,d_jan_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+death_geo_acu_jan_sp.d_jan_localMI.map <- tm_shape(death_geo_acu_jan_sp.d_jan_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Death Cumulative of Month Jan") +
+  tm_borders(alpha = 0.5)
+
+death_geo_acu_jan_sp.d_jan_localMI.pvalue.map <- tm_shape(death_geo_acu_jan_sp.d_jan_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Death Cumulative of Month Jan") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(death_geo_acu_jan_sp.d_jan_localMI.map, death_geo_acu_jan_sp.d_jan_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+##### For Death Cumulative of the Month April
+```{r}
+## Computing Local Moran's I
+d_apr_fips <- order(death_geo_acu_apr_sp$City_EN)
+d_apr_localMI <- 
+  localmoran(death_geo_acu_apr_sp$death_cumul_count, 
+             rsd_acu_apr_wm_q_w)
+
+#head(d_apr_localMI)
+#printCoefmat(data.frame(d_apr_localMI[d_apr_fips,], row.names=death_geo_acu_apr_sp$City_EN[d_apr_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Death Cases SpatialPolygonDataFrame.
+death_geo_acu_apr_sp.d_apr_localMI <- 
+  cbind(death_geo_acu_apr_sp,d_apr_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+death_geo_acu_apr_sp.d_apr_localMI.map <- tm_shape(death_geo_acu_apr_sp.d_apr_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Death Cumulative of Month Apr") +
+  tm_borders(alpha = 0.5)
+
+death_geo_acu_apr_sp.d_apr_localMI.pvalue.map <- tm_shape(death_geo_acu_apr_sp.d_apr_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Death Cumulative of Month Apr") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(death_geo_acu_apr_sp.d_apr_localMI.map, death_geo_acu_apr_sp.d_apr_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+##### For Death Cumulative of the Month July
+```{r}
+## Computing Local Moran's I
+d_jul_fips <- order(death_geo_acu_jul_sp$City_EN)
+d_jul_localMI <- 
+  localmoran(death_geo_acu_jul_sp$death_cumul_count, 
+             rsd_acu_jul_wm_q_w)
+
+#head(d_jul_localMI)
+#printCoefmat(data.frame(d_jul_localMI[d_jul_fips,], row.names=death_geo_acu_jul_sp$City_EN[d_jul_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Death Cases SpatialPolygonDataFrame.
+death_geo_acu_jul_sp.d_jul_localMI <- 
+  cbind(death_geo_acu_jul_sp,d_jul_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+death_geo_acu_jul_sp.d_jul_localMI.map <- tm_shape(death_geo_acu_jul_sp.d_jul_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Death Cumulative of Month Jul") +
+  tm_borders(alpha = 0.5)
+
+death_geo_acu_jul_sp.d_jul_localMI.pvalue.map <- tm_shape(death_geo_acu_jul_sp.d_jul_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Death Cumulative of Month Jul") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(death_geo_acu_jul_sp.d_jul_localMI.map, death_geo_acu_jul_sp.d_jul_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+##### For Death Cumulative of the Month September
+```{r}
+## Computing Local Moran's I
+d_sep_fips <- order(death_geo_acu_sep_sp$City_EN)
+d_sep_localMI <- 
+  localmoran(death_geo_acu_sep_sp$death_cumul_count, 
+             rsd_acu_sep_wm_q_w)
+
+#head(d_sep_localMI)
+#printCoefmat(data.frame(d_sep_localMI[d_sep_fips,], row.names=death_geo_acu_sep_sp$City_EN[d_sep_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Death Cases SpatialPolygonDataFrame.
+death_geo_acu_sep_sp.d_sep_localMI <- 
+  cbind(death_geo_acu_sep_sp,d_sep_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+death_geo_acu_sep_sp.d_sep_localMI.map <- tm_shape(death_geo_acu_sep_sp.d_sep_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Death Cumulative of Month Sep") +
+  tm_borders(alpha = 0.5)
+
+death_geo_acu_sep_sp.d_sep_localMI.pvalue.map <- tm_shape(death_geo_acu_sep_sp.d_sep_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Death Cumulative of Month Sep") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(death_geo_acu_sep_sp.d_sep_localMI.map, death_geo_acu_sep_sp.d_sep_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+##### For Death Cumulative of the Month from January to September
+```{r}
+## Computing Local Moran's I
+d_acu_fips <- order(death_geo_acu_sp$City_EN)
+d_localMI<- 
+  localmoran(death_geo_acu_sp$death_cumul_count, 
+             rsd_acu_wm_q_w)
+
+#head(d_localMI_adap_b)
+#printCoefmat(data.frame(d_localMI[d_acu_fips,], row.names=death_geo_acu_sp$City_EN[d_acu_fips]), check.names=FALSE)
+
+#append the local Moran’s I dataframe (i.e. localMI) onto Death Cases SpatialPolygonDataFrame.
+death_geo_acu_sp.d_localMI <- 
+  cbind(death_geo_acu_sp,d_localMI)
+```
+
+##### Mapping Local Moran's I Values and Moran's I P Values
+```{r}
+death_geo_acu_sp.d_localMI.map <- tm_shape(death_geo_acu_sp.d_localMI) +
+  tm_fill(col = "Ii", 
+          style = "pretty",
+          palette = "RdBu",
+          title = "local moran statistics for Death Cumulative of Month of Jan to Sep") +
+  tm_borders(alpha = 0.5)
+
+death_geo_acu_sp.d_localMI.pvalue.map <- tm_shape(death_geo_acu_sp.d_localMI) +
+  tm_fill(col = "Pr.z...0.", 
+          breaks=c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
+          palette="-Blues", 
+          title = "local Moran's I p-values for Death Cumulative of Month of Jan to Sep") +
+  tm_borders(alpha = 0.5)
+
+tmap_arrange(death_geo_acu_sp.d_localMI.map, death_geo_acu_sp.d_localMI.pvalue.map, asp=1, ncol=2)
+```
+
+### Generating the LISA Cluster Map
+
+#### For Cumulative Cases
+
+###### Month of Jan 2020
+```{r}
+c_quadrant_jan <- vector(mode="numeric",length=nrow(c_jan_localMI))
+confirmed_geo_acu_jan_sp$Z.confirmed_cumul_count <- scale(confirmed_geo_acu_jan_sp$confirmed_cumul_count) %>% as.vector()
+DV <- confirmed_geo_acu_jan_sp$Z.confirmed_cumul_count - mean(confirmed_geo_acu_jan_sp$Z.confirmed_cumul_count)
+
+C_mI <- c_jan_localMI[,1] - mean(c_jan_localMI[,1])    
+signif <- 0.05       
+c_quadrant_jan[DV >0 & C_mI>0] <- 4      
+c_quadrant_jan[DV <0 & C_mI<0] <- 1      
+c_quadrant_jan[DV <0 & C_mI>0] <- 2
+c_quadrant_jan[DV >0 & C_mI<0] <- 3
+c_quadrant_jan[c_jan_localMI[,5]>signif] <- 0
+
+
+confirmed_geo_acu_jan_sp.c_jan_localMI$c_quadrant_jan <- c_quadrant_jan
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(confirmed_geo_acu_jan_sp.c_jan_localMI) +
+  tm_fill(col = "c_quadrant_jan", style = "cat", palette = colors[c(sort(unique(c_quadrant_jan)))+1], labels = clusters[c(sort(unique(c_quadrant_jan)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+###### Month of Apr 2020
+```{r}
+c_quadrant_apr <- vector(mode="numeric",length=nrow(c_apr_localMI))
+confirmed_geo_acu_apr_sp$Z.confirmed_cumul_count <- scale(confirmed_geo_acu_apr_sp$confirmed_cumul_count) %>% as.vector()
+DV <- confirmed_geo_acu_apr_sp$Z.confirmed_cumul_count - mean(confirmed_geo_acu_apr_sp$Z.confirmed_cumul_count)
+
+C_mI <- c_apr_localMI[,1] - mean(c_apr_localMI[,1])    
+signif <- 0.05       
+c_quadrant_apr[DV >0 & C_mI>0] <- 4      
+c_quadrant_apr[DV <0 & C_mI<0] <- 1      
+c_quadrant_apr[DV <0 & C_mI>0] <- 2
+c_quadrant_apr[DV >0 & C_mI<0] <- 3
+c_quadrant_apr[c_apr_localMI[,5]>signif] <- 0
+
+
+confirmed_geo_acu_apr_sp.c_apr_localMI$c_quadrant_apr <- c_quadrant_apr
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(confirmed_geo_acu_apr_sp.c_apr_localMI) +
+  tm_fill(col = "c_quadrant_apr", style = "cat", palette = colors[c(sort(unique(c_quadrant_apr)))+1], labels = clusters[c(sort(unique(c_quadrant_apr)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+
+###### Month of July 2020
+```{r}
+c_quadrant_jul <- vector(mode="numeric",length=nrow(c_jul_localMI))
+confirmed_geo_acu_jul_sp$Z.confirmed_cumul_count <- scale(confirmed_geo_acu_jul_sp$confirmed_cumul_count) %>% as.vector()
+DV <- confirmed_geo_acu_jul_sp$Z.confirmed_cumul_count - mean(confirmed_geo_acu_jul_sp$Z.confirmed_cumul_count)
+
+C_mI <- c_jul_localMI[,1] - mean(c_jul_localMI[,1])    
+signif <- 0.05       
+c_quadrant_jul[DV >0 & C_mI>0] <- 4      
+c_quadrant_jul[DV <0 & C_mI<0] <- 1      
+c_quadrant_jul[DV <0 & C_mI>0] <- 2
+c_quadrant_jul[DV >0 & C_mI<0] <- 3
+c_quadrant_jul[c_jul_localMI[,5]>signif] <- 0
+
+
+confirmed_geo_acu_jul_sp.c_jul_localMI$c_quadrant_jul <- c_quadrant_jul
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(confirmed_geo_acu_jul_sp.c_jul_localMI) +
+  tm_fill(col = "c_quadrant_jul", style = "cat", palette = colors[c(sort(unique(c_quadrant_jul)))+1], labels = clusters[c(sort(unique(c_quadrant_jul)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+###### Month of September 2020
+```{r}
+c_quadrant_sep <- vector(mode="numeric",length=nrow(c_sep_localMI))
+confirmed_geo_acu_sep_sp$Z.confirmed_cumul_count <- scale(confirmed_geo_acu_sep_sp$confirmed_cumul_count) %>% as.vector()
+DV <- confirmed_geo_acu_sep_sp$Z.confirmed_cumul_count - mean(confirmed_geo_acu_sep_sp$Z.confirmed_cumul_count)
+
+C_mI <- c_sep_localMI[,1] - mean(c_sep_localMI[,1])    
+signif <- 0.05       
+c_quadrant_sep[DV >0 & C_mI>0] <- 4      
+c_quadrant_sep[DV <0 & C_mI<0] <- 1      
+c_quadrant_sep[DV <0 & C_mI>0] <- 2
+c_quadrant_sep[DV >0 & C_mI<0] <- 3
+c_quadrant_sep[c_sep_localMI[,5]>signif] <- 0
+
+
+confirmed_geo_acu_sep_sp.c_sep_localMI$c_quadrant_sep <- c_quadrant_sep
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(confirmed_geo_acu_sep_sp.c_sep_localMI) +
+  tm_fill(col = "c_quadrant_sep", style = "cat", palette = colors[c(sort(unique(c_quadrant_sep)))+1], labels = clusters[c(sort(unique(c_quadrant_sep)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+###### Month of Jan to Sep 2020
+```{r}
+c_quadrant_acu <- vector(mode="numeric",length=nrow(c_localMI))
+confirmed_geo_acu_sp$Z.confirmed_cumul_count <- scale(confirmed_geo_acu_sp$confirmed_cumul_count) %>% as.vector()
+DV <- confirmed_geo_acu_sp$Z.confirmed_cumul_count - mean(confirmed_geo_acu_sp$Z.confirmed_cumul_count)
+
+C_mI <- c_localMI[,1] - mean(c_localMI[,1])    
+signif <- 0.05       
+c_quadrant_acu[DV >0 & C_mI>0] <- 4      
+c_quadrant_acu[DV <0 & C_mI<0] <- 1      
+c_quadrant_acu[DV <0 & C_mI>0] <- 2
+c_quadrant_acu[DV >0 & C_mI<0] <- 3
+c_quadrant_acu[c_sep_localMI[,5]>signif] <- 0
+
+
+confirmed_geo_acu_sp.c_localMI$c_quadrant_acu <- c_quadrant_acu
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(confirmed_geo_acu_sp.c_localMI) +
+  tm_fill(col = "c_quadrant_acu", style = "cat", palette = colors[c(sort(unique(c_quadrant_acu)))+1], labels = clusters[c(sort(unique(c_quadrant_acu)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+##### For Recovered Cases
+
+###### Month of Jan 2020
+```{r}
+r_quadrant_jan <- vector(mode="numeric",length=nrow(r_jan_localMI))
+recovered_geo_acu_jan_sp$Z.recovered_cumul_count <- scale(recovered_geo_acu_jan_sp$recovered_cumul_count) %>% as.vector()
+DV <- recovered_geo_acu_jan_sp$Z.recovered_cumul_count - mean(recovered_geo_acu_jan_sp$Z.recovered_cumul_count)
+
+C_mI <- r_jan_localMI[,1] - mean(r_jan_localMI[,1])    
+signif <- 0.05       
+r_quadrant_jan[DV >0 & C_mI>0] <- 4      
+r_quadrant_jan[DV <0 & C_mI<0] <- 1      
+r_quadrant_jan[DV <0 & C_mI>0] <- 2
+r_quadrant_jan[DV >0 & C_mI<0] <- 3
+r_quadrant_jan[r_jan_localMI[,5]>signif] <- 0
+
+
+recovered_geo_acu_jan_sp.r_jan_localMI$r_quadrant_jan <- r_quadrant_jan
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(recovered_geo_acu_jan_sp.r_jan_localMI) +
+  tm_fill(col = "r_quadrant_jan", style = "cat", palette = colors[c(sort(unique(r_quadrant_jan)))+1], labels = clusters[c(sort(unique(r_quadrant_jan)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+###### Month of Apr 2020
+```{r}
+r_quadrant_apr <- vector(mode="numeric",length=nrow(r_apr_localMI))
+recovered_geo_acu_apr_sp$Z.recovered_cumul_count <- scale(recovered_geo_acu_apr_sp$recovered_cumul_count) %>% as.vector()
+DV <- recovered_geo_acu_apr_sp$Z.recovered_cumul_count - mean(recovered_geo_acu_apr_sp$Z.recovered_cumul_count)
+
+C_mI <- r_apr_localMI[,1] - mean(r_apr_localMI[,1])    
+signif <- 0.05       
+r_quadrant_apr[DV >0 & C_mI>0] <- 4      
+r_quadrant_apr[DV <0 & C_mI<0] <- 1      
+r_quadrant_apr[DV <0 & C_mI>0] <- 2
+r_quadrant_apr[DV >0 & C_mI<0] <- 3
+r_quadrant_apr[r_apr_localMI[,5]>signif] <- 0
+
+
+recovered_geo_acu_apr_sp.r_apr_localMI$r_quadrant_apr <- r_quadrant_apr
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(recovered_geo_acu_apr_sp.r_apr_localMI) +
+  tm_fill(col = "r_quadrant_apr", style = "cat", palette = colors[c(sort(unique(r_quadrant_apr)))+1], labels = clusters[c(sort(unique(r_quadrant_apr)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+
+###### Month of July 2020
+```{r}
+r_quadrant_jul <- vector(mode="numeric",length=nrow(r_jul_localMI))
+recovered_geo_acu_jul_sp$Z.recovered_cumul_count <- scale(recovered_geo_acu_jul_sp$recovered_cumul_count) %>% as.vector()
+DV <- recovered_geo_acu_jul_sp$Z.recovered_cumul_count - mean(recovered_geo_acu_jul_sp$Z.recovered_cumul_count)
+
+C_mI <- r_jul_localMI[,1] - mean(r_jul_localMI[,1])    
+signif <- 0.05       
+r_quadrant_jul[DV >0 & C_mI>0] <- 4      
+r_quadrant_jul[DV <0 & C_mI<0] <- 1      
+r_quadrant_jul[DV <0 & C_mI>0] <- 2
+r_quadrant_jul[DV >0 & C_mI<0] <- 3
+r_quadrant_jul[r_jul_localMI[,5]>signif] <- 0
+
+
+recovered_geo_acu_jul_sp.r_jul_localMI$r_quadrant_jul <- r_quadrant_jul
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(recovered_geo_acu_jul_sp.r_jul_localMI) +
+  tm_fill(col = "r_quadrant_jul", style = "cat", palette = colors[c(sort(unique(r_quadrant_jul)))+1], labels = clusters[c(sort(unique(r_quadrant_jul)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+###### Month of September 2020
+```{r}
+r_quadrant_sep <- vector(mode="numeric",length=nrow(r_sep_localMI))
+recovered_geo_acu_sep_sp$Z.recovered_cumul_count <- scale(recovered_geo_acu_sep_sp$recovered_cumul_count) %>% as.vector()
+DV <- recovered_geo_acu_sep_sp$Z.recovered_cumul_count - mean(recovered_geo_acu_sep_sp$Z.recovered_cumul_count)
+
+C_mI <- r_sep_localMI[,1] - mean(r_sep_localMI[,1])    
+signif <- 0.05       
+r_quadrant_sep[DV >0 & C_mI>0] <- 4      
+r_quadrant_sep[DV <0 & C_mI<0] <- 1      
+r_quadrant_sep[DV <0 & C_mI>0] <- 2
+r_quadrant_sep[DV >0 & C_mI<0] <- 3
+r_quadrant_sep[r_sep_localMI[,5]>signif] <- 0
+
+
+recovered_geo_acu_sep_sp.r_sep_localMI$r_quadrant_sep <- r_quadrant_sep
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(recovered_geo_acu_sep_sp.r_sep_localMI) +
+  tm_fill(col = "r_quadrant_sep", style = "cat", palette = colors[c(sort(unique(r_quadrant_sep)))+1], labels = clusters[c(sort(unique(r_quadrant_sep)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+###### Month of Jan to Sep 2020
+```{r}
+r_quadrant_acu <- vector(mode="numeric",length=nrow(r_localMI))
+recovered_geo_acu_sp$Z.recovered_cumul_count <- scale(recovered_geo_acu_sp$recovered_cumul_count) %>% as.vector()
+DV <- recovered_geo_acu_sp$Z.recovered_cumul_count - mean(recovered_geo_acu_sp$Z.recovered_cumul_count)
+
+C_mI <- r_localMI[,1] - mean(r_localMI[,1])    
+signif <- 0.05       
+r_quadrant_acu[DV >0 & C_mI>0] <- 4      
+r_quadrant_acu[DV <0 & C_mI<0] <- 1      
+r_quadrant_acu[DV <0 & C_mI>0] <- 2
+r_quadrant_acu[DV >0 & C_mI<0] <- 3
+r_quadrant_acu[r_sep_localMI[,5]>signif] <- 0
+
+
+recovered_geo_acu_sp.r_localMI$r_quadrant_acu <- r_quadrant_acu
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(recovered_geo_acu_sp.r_localMI) +
+  tm_fill(col = "r_quadrant_acu", style = "cat", palette = colors[c(sort(unique(r_quadrant_acu)))+1], labels = clusters[c(sort(unique(r_quadrant_acu)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+##### For Death Cases
+
+###### Month of Jan 2020
+```{r}
+d_quadrant_jan <- vector(mode="numeric",length=nrow(d_jan_localMI))
+death_geo_acu_jan_sp$Z.death_cumul_count <- scale(death_geo_acu_jan_sp$death_cumul_count) %>% as.vector()
+DV <- death_geo_acu_jan_sp$Z.death_cumul_count - mean(death_geo_acu_jan_sp$Z.death_cumul_count)
+
+C_mI <- d_jan_localMI[,1] - mean(d_jan_localMI[,1])    
+signif <- 0.05       
+d_quadrant_jan[DV >0 & C_mI>0] <- 4      
+d_quadrant_jan[DV <0 & C_mI<0] <- 1      
+d_quadrant_jan[DV <0 & C_mI>0] <- 2
+d_quadrant_jan[DV >0 & C_mI<0] <- 3
+d_quadrant_jan[d_jan_localMI[,5]>signif] <- 0
+
+
+death_geo_acu_jan_sp.d_jan_localMI$d_quadrant_jan <- d_quadrant_jan
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(death_geo_acu_jan_sp.d_jan_localMI) +
+  tm_fill(col = "d_quadrant_jan", style = "cat", palette = colors[c(sort(unique(d_quadrant_jan)))+1], labels = clusters[c(sort(unique(d_quadrant_jan)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+###### Month of Apr 2020
+```{r}
+d_quadrant_apr <- vector(mode="numeric",length=nrow(d_apr_localMI))
+death_geo_acu_apr_sp$Z.death_cumul_count <- scale(death_geo_acu_apr_sp$death_cumul_count) %>% as.vector()
+DV <- death_geo_acu_apr_sp$Z.death_cumul_count - mean(death_geo_acu_apr_sp$Z.death_cumul_count)
+
+C_mI <- d_apr_localMI[,1] - mean(d_apr_localMI[,1])    
+signif <- 0.05       
+d_quadrant_apr[DV >0 & C_mI>0] <- 4      
+d_quadrant_apr[DV <0 & C_mI<0] <- 1      
+d_quadrant_apr[DV <0 & C_mI>0] <- 2
+d_quadrant_apr[DV >0 & C_mI<0] <- 3
+d_quadrant_apr[d_apr_localMI[,5]>signif] <- 0
+
+
+death_geo_acu_apr_sp.d_apr_localMI$d_quadrant_apr <- d_quadrant_apr
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(death_geo_acu_apr_sp.d_apr_localMI) +
+  tm_fill(col = "d_quadrant_apr", style = "cat", palette = colors[c(sort(unique(d_quadrant_apr)))+1], labels = clusters[c(sort(unique(d_quadrant_apr)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+
+###### Month of July 2020
+```{r}
+d_quadrant_jul <- vector(mode="numeric",length=nrow(d_jul_localMI))
+death_geo_acu_jul_sp$Z.death_cumul_count <- scale(death_geo_acu_jul_sp$death_cumul_count) %>% as.vector()
+DV <- death_geo_acu_jul_sp$Z.death_cumul_count - mean(death_geo_acu_jul_sp$Z.death_cumul_count)
+
+C_mI <- d_jul_localMI[,1] - mean(d_jul_localMI[,1])    
+signif <- 0.05       
+d_quadrant_jul[DV >0 & C_mI>0] <- 4      
+d_quadrant_jul[DV <0 & C_mI<0] <- 1      
+d_quadrant_jul[DV <0 & C_mI>0] <- 2
+d_quadrant_jul[DV >0 & C_mI<0] <- 3
+d_quadrant_jul[d_jul_localMI[,5]>signif] <- 0
+
+
+death_geo_acu_jul_sp.d_jul_localMI$d_quadrant_jul <- d_quadrant_jul
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(death_geo_acu_jul_sp.d_jul_localMI) +
+  tm_fill(col = "d_quadrant_jul", style = "cat", palette = colors[c(sort(unique(d_quadrant_jul)))+1], labels = clusters[c(sort(unique(d_quadrant_jul)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+###### Month of September 2020
+```{r}
+d_quadrant_sep <- vector(mode="numeric",length=nrow(d_sep_localMI))
+death_geo_acu_sep_sp$Z.death_cumul_count <- scale(death_geo_acu_sep_sp$death_cumul_count) %>% as.vector()
+DV <- death_geo_acu_sep_sp$Z.death_cumul_count - mean(death_geo_acu_sep_sp$Z.death_cumul_count)
+
+C_mI <- d_sep_localMI[,1] - mean(d_sep_localMI[,1])    
+signif <- 0.05       
+d_quadrant_sep[DV >0 & C_mI>0] <- 4      
+d_quadrant_sep[DV <0 & C_mI<0] <- 1      
+d_quadrant_sep[DV <0 & C_mI>0] <- 2
+d_quadrant_sep[DV >0 & C_mI<0] <- 3
+d_quadrant_sep[d_sep_localMI[,5]>signif] <- 0
+
+
+death_geo_acu_sep_sp.d_sep_localMI$d_quadrant_sep <- d_quadrant_sep
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(death_geo_acu_sep_sp.d_sep_localMI) +
+  tm_fill(col = "d_quadrant_sep", style = "cat", palette = colors[c(sort(unique(d_quadrant_sep)))+1], labels = clusters[c(sort(unique(d_quadrant_sep)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+###### Month of Jan to Sep 2020
+```{r}
+d_quadrant_acu <- vector(mode="numeric",length=nrow(d_localMI))
+death_geo_acu_sp$Z.death_cumul_count <- scale(death_geo_acu_sp$death_cumul_count) %>% as.vector()
+DV <- death_geo_acu_sp$Z.death_cumul_count - mean(death_geo_acu_sp$Z.death_cumul_count)
+
+C_mI <- d_localMI[,1] - mean(d_localMI[,1])    
+signif <- 0.05       
+d_quadrant_acu[DV >0 & C_mI>0] <- 4      
+d_quadrant_acu[DV <0 & C_mI<0] <- 1      
+d_quadrant_acu[DV <0 & C_mI>0] <- 2
+d_quadrant_acu[DV >0 & C_mI<0] <- 3
+d_quadrant_acu[d_sep_localMI[,5]>signif] <- 0
+
+
+death_geo_acu_sp.d_localMI$d_quadrant_acu <- d_quadrant_acu
+colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+
+tm_shape(death_geo_acu_sp.d_localMI) +
+  tm_fill(col = "d_quadrant_acu", style = "cat", palette = colors[c(sort(unique(d_quadrant_acu)))+1], labels = clusters[c(sort(unique(d_quadrant_acu)))+1], popup.vars = c("City_EN")) +
+  tm_view(set.zoom.limits = c(11,17)) +
+  tm_borders(alpha=0.5)
+```
+
+# Hot and Cold Spot Area Analysis
+The term ‘hot spot’ has been used generically across disciplines to describe a region or value that is higher relative to its surroundings (Lepers et al 2005, Aben et al 2012, Isobe et al 2015).
+
+Follow up by Getis and Ord's G-Statistics to detect the spatial anomalites with the three components:
+
+## Getis and Ord’s G-Statistics
+- Deriving spatial weight matrix
+- Computing Gi statistics
+- Mapping Gi statistics
+
+## Deriving distance-based weight matrix
+### Creating fixed distance proximity matrix
+```{r}
+#dnb_c <- dnearneigh(coordinates(confirmed_geo_sp), 0, 85, longlat = TRUE)
+dnb_c_jan <- dnearneigh(coordinates(confirmed_geo_acu_jan_sp), 0, 85, longlat = TRUE)
+dnb_c_apr <- dnearneigh(coordinates(confirmed_geo_acu_apr_sp), 0, 85, longlat = TRUE)
+dnb_c_jul <- dnearneigh(coordinates(confirmed_geo_acu_jul_sp), 0, 85, longlat = TRUE)
+dnb_c_sep <- dnearneigh(coordinates(confirmed_geo_acu_sep_sp), 0, 85, longlat = TRUE)
+dnb_c_acu <- dnearneigh(coordinates(confirmed_geo_acu_sp), 0, 85, longlat = TRUE)
+
+#dnb_r <- dnearneigh(coordinates(recovered_geo_sp), 0, 85, longlat = TRUE)
+dnb_r_jan <- dnearneigh(coordinates(recovered_geo_acu_jan_sp), 0, 85, longlat = TRUE)
+dnb_r_apr <- dnearneigh(coordinates(recovered_geo_acu_apr_sp), 0, 85, longlat = TRUE)
+dnb_r_jul <- dnearneigh(coordinates(recovered_geo_acu_jul_sp), 0, 85, longlat = TRUE)
+dnb_r_sep <- dnearneigh(coordinates(recovered_geo_acu_sep_sp), 0, 85, longlat = TRUE)
+dnb_r_acu <- dnearneigh(coordinates(recovered_geo_acu_sp), 0, 85, longlat = TRUE)
+
+#dnb_d <- dnearneigh(coordinates(death_geo_sp), 0, 85, longlat = TRUE)
+dnb_d_jan <- dnearneigh(coordinates(death_geo_acu_jan_sp), 0, 85, longlat = TRUE)
+dnb_d_apr <- dnearneigh(coordinates(death_geo_acu_apr_sp), 0, 85, longlat = TRUE)
+dnb_d_jul <- dnearneigh(coordinates(death_geo_acu_jul_sp), 0, 85, longlat = TRUE)
+dnb_d_sep <- dnearneigh(coordinates(death_geo_acu_sep_sp), 0, 85, longlat = TRUE)
+dnb_d_acu <- dnearneigh(coordinates(death_geo_acu_sp), 0, 85, longlat = TRUE)
+
+#dnb_c
+dnb_c_acu
+dnb_c_jan
+dnb_c_apr
+dnb_c_jul
+dnb_c_sep
+
+#dnb_r
+dnb_r_acu
+dnb_r_jan
+dnb_r_apr
+dnb_r_jul
+dnb_r_sep
+
+#dnb_d
+dnb_d_acu
+dnb_d_jan
+dnb_d_apr
+dnb_d_jul
+dnb_d_sep
+```
+
+## Creating fixed distance proximity matrix
+```{r}
+#dnb_c_lw <- nb2listw(dnb_c, style = 'B')
+dnb_c_jan_lw <- nb2listw(dnb_c_jan, style = 'B')
+dnb_c_apr_lw <- nb2listw(dnb_c_apr, style = 'B')
+dnb_c_jul_lw <- nb2listw(dnb_c_jul, style = 'B')
+dnb_c_sep_lw <- nb2listw(dnb_c_sep, style = 'B')
+dnb_c_acu_lw <- nb2listw(dnb_c_acu, style = 'B')
+
+#dnb_r_lw <- nb2listw(dnb_r, style = 'B')
+dnb_r_jan_lw <- nb2listw(dnb_r_jan, style = 'B')
+dnb_r_apr_lw <- nb2listw(dnb_r_apr, style = 'B')
+dnb_r_jul_lw <- nb2listw(dnb_r_jul, style = 'B')
+dnb_r_sep_lw <- nb2listw(dnb_r_sep, style = 'B')
+dnb_r_acu_lw <- nb2listw(dnb_r_acu, style = 'B')
+
+#dnb_d_lw <- nb2listw(dnb_d, style = 'B')
+dnb_d_jan_lw <- nb2listw(dnb_d_jan, style = 'B')
+dnb_d_apr_lw <- nb2listw(dnb_d_apr, style = 'B')
+dnb_d_jul_lw <- nb2listw(dnb_d_jul, style = 'B')
+dnb_d_sep_lw <- nb2listw(dnb_d_sep, style = 'B')
+dnb_d_acu_lw <- nb2listw(dnb_d_acu, style = 'B')
+```
+
+## Creating adaptive proximity matrix
+```{r}
+knb_c_jan <- knn2nb(knearneigh(coordinates(confirmed_geo_acu_jan_sp), k=8, longlat = TRUE), row.names=row.names(confirmed_geo_acu_jan_sp$confirmed_cumul_count))
+knb_c_apr <- knn2nb(knearneigh(coordinates(confirmed_geo_acu_apr_sp), k=8, longlat = TRUE), row.names=row.names(confirmed_geo_acu_apr_sp$confirmed_cumul_count))
+knb_c_jul <- knn2nb(knearneigh(coordinates(confirmed_geo_acu_jul_sp), k=8, longlat = TRUE), row.names=row.names(confirmed_geo_acu_jul_sp$confirmed_cumul_count))
+knb_c_sep <- knn2nb(knearneigh(coordinates(confirmed_geo_acu_sep_sp), k=8, longlat = TRUE), row.names=row.names(confirmed_geo_acu_sep_sp$confirmed_cumul_count))
+knb_c_acu <- knn2nb(knearneigh(coordinates(confirmed_geo_acu_sp), k=8, longlat = TRUE), row.names=row.names(confirmed_geo_acu_sp$confirmed_cumul_count))
+
+knb_r_jan <- knn2nb(knearneigh(coordinates(recovered_geo_acu_jan_sp), k=8, longlat = TRUE), row.names=row.names(recovered_geo_acu_jan_sp$recovered_cumul_count))
+knb_r_apr <- knn2nb(knearneigh(coordinates(recovered_geo_acu_apr_sp), k=8, longlat = TRUE), row.names=row.names(recovered_geo_acu_apr_sp$recovered_cumul_count))
+knb_r_jul <- knn2nb(knearneigh(coordinates(recovered_geo_acu_jul_sp), k=8, longlat = TRUE), row.names=row.names(recovered_geo_acu_jul_sp$recovered_cumul_count))
+knb_r_sep <- knn2nb(knearneigh(coordinates(recovered_geo_acu_sep_sp), k=8, longlat = TRUE), row.names=row.names(recovered_geo_acu_sep_sp$recovered_cumul_count))
+knb_r_acu <- knn2nb(knearneigh(coordinates(recovered_geo_acu_sp), k=8, longlat = TRUE), row.names=row.names(recovered_geo_acu_sp$recovered_cumul_count))
+
+knb_d_jan <- knn2nb(knearneigh(coordinates(death_geo_acu_jan_sp), k=8, longlat = TRUE), row.names=row.names(death_geo_acu_jan_sp$death_cumul_count))
+knb_d_apr <- knn2nb(knearneigh(coordinates(death_geo_acu_apr_sp), k=8, longlat = TRUE), row.names=row.names(death_geo_acu_apr_sp$death_cumul_count))
+knb_d_jul <- knn2nb(knearneigh(coordinates(death_geo_acu_jul_sp), k=8, longlat = TRUE), row.names=row.names(death_geo_acu_jul_sp$death_cumul_count))
+knb_d_sep <- knn2nb(knearneigh(coordinates(death_geo_acu_sep_sp), k=8, longlat = TRUE), row.names=row.names(death_geo_acu_sep_sp$death_cumul_count))
+knb_d_acu <- knn2nb(knearneigh(coordinates(death_geo_acu_sp), k=8, longlat = TRUE), row.names=row.names(death_geo_acu_sp$death_cumul_count))
+```
+
+```{r}
+knb_c_jan_lw <- nb2listw(knb_c_jan, style = 'B')
+knb_c_apr_lw <- nb2listw(knb_c_apr, style = 'B')
+knb_c_jul_lw <- nb2listw(knb_c_jul, style = 'B')
+knb_c_sep_lw <- nb2listw(knb_c_sep, style = 'B')
+knb_c_acu_lw <- nb2listw(knb_c_acu, style = 'B')
+
+knb_r_jan_lw <- nb2listw(knb_r_jan, style = 'B')
+knb_r_apr_lw <- nb2listw(knb_r_apr, style = 'B')
+knb_r_jul_lw <- nb2listw(knb_r_jul, style = 'B')
+knb_r_sep_lw <- nb2listw(knb_r_sep, style = 'B')
+knb_r_acu_lw <- nb2listw(knb_r_acu, style = 'B')
+
+knb_d_jan_lw <- nb2listw(knb_d_jan, style = 'B')
+knb_d_apr_lw <- nb2listw(knb_d_apr, style = 'B')
+knb_d_jul_lw <- nb2listw(knb_d_jul, style = 'B')
+knb_d_sep_lw <- nb2listw(knb_d_sep, style = 'B')
+knb_d_acu_lw <- nb2listw(knb_d_acu, style = 'B')
+```
+
+## Computing Gi statistics using fixed distance
+
+Performs the three tasks. First, converting the output vector into r matrix object by using as.matrix(). Next, cbind() is used to join data and gi.fixed matrix to produce a new SpatialPolygonDataFrame called hunan.gi. Lastly, the field name of the gi values is renamed to gstat_fixed by using names().
+```{r}
+c_acu_jan_fips <- order(confirmed_geo_acu_jan_sp$City_EN)
+c_acu_apr_fips <- order(confirmed_geo_acu_apr_sp$City_EN)
+c_acu_jul_fips <- order(confirmed_geo_acu_jul_sp$City_EN)
+c_acu_sep_fips <- order(confirmed_geo_acu_sep_sp$City_EN)
+c_acu_fips <- order(confirmed_geo_acu_sp$City_EN)
+
+r_acu_jan_fips <- order(recovered_geo_acu_jan_sp$City_EN)
+r_acu_apr_fips <- order(recovered_geo_acu_apr_sp$City_EN)
+r_acu_jul_fips <- order(recovered_geo_acu_jul_sp$City_EN)
+r_acu_sep_fips <- order(recovered_geo_acu_sep_sp$City_EN)
+r_acu_fips <- order(recovered_geo_acu_sp$City_EN)
+
+d_acu_jan_fips <- order(death_geo_acu_jan_sp$City_EN)
+d_acu_apr_fips <- order(death_geo_acu_apr_sp$City_EN)
+d_acu_jul_fips <- order(death_geo_acu_jul_sp$City_EN)
+d_acu_sep_fips <- order(death_geo_acu_sep_sp$City_EN)
+d_acu_fips <- order(death_geo_acu_sp$City_EN)
+```
+
+```{r}
+c_jan_gi.fixed <- localG(confirmed_geo_acu_jan_sp$confirmed_cumul_count, dnb_c_jan_lw)
+c_apr_gi.fixed <- localG(confirmed_geo_acu_apr_sp$confirmed_cumul_count, dnb_c_apr_lw)
+c_jul_gi.fixed <- localG(confirmed_geo_acu_jul_sp$confirmed_cumul_count, dnb_c_jul_lw)
+c_sep_gi.fixed <- localG(confirmed_geo_acu_sep_sp$confirmed_cumul_count, dnb_c_sep_lw)
+c_acu_gi.fixed <- localG(confirmed_geo_acu_sp$confirmed_cumul_count, dnb_c_acu_lw)
+
+r_jan_gi.fixed <- localG(recovered_geo_acu_jan_sp$recovered_cumul_count, dnb_r_jan_lw)
+r_apr_gi.fixed <- localG(recovered_geo_acu_apr_sp$recovered_cumul_count, dnb_r_apr_lw)
+r_jul_gi.fixed <- localG(recovered_geo_acu_jul_sp$recovered_cumul_count, dnb_r_jul_lw)
+r_sep_gi.fixed <- localG(recovered_geo_acu_sep_sp$recovered_cumul_count, dnb_r_sep_lw)
+r_acu_gi.fixed <- localG(recovered_geo_acu_sp$recovered_cumul_count, dnb_r_acu_lw)
+
+d_jan_gi.fixed <- localG(death_geo_acu_jan_sp$death_cumul_count, dnb_d_jan_lw)
+d_apr_gi.fixed <- localG(death_geo_acu_apr_sp$death_cumul_count, dnb_d_apr_lw)
+d_jul_gi.fixed <- localG(death_geo_acu_jul_sp$death_cumul_count, dnb_d_jul_lw)
+d_sep_gi.fixed <- localG(death_geo_acu_sep_sp$death_cumul_count, dnb_d_sep_lw)
+d_acu_gi.fixed <- localG(death_geo_acu_sp$death_cumul_count, dnb_d_acu_lw)
+```
+
+```{r}
+c_acu_jan.gi <- cbind(confirmed_geo_acu_jan_sp, as.matrix(c_jan_gi.fixed))
+c_acu_apr.gi <- cbind(confirmed_geo_acu_apr_sp, as.matrix(c_apr_gi.fixed))
+c_acu_jul.gi <- cbind(confirmed_geo_acu_jul_sp, as.matrix(c_jul_gi.fixed))
+c_acu_sep.gi <- cbind(confirmed_geo_acu_sep_sp, as.matrix(c_sep_gi.fixed))
+c_acu.gi <- cbind(confirmed_geo_acu_sp, as.matrix(c_acu_gi.fixed))
+
+r_acu_jan.gi <- cbind(recovered_geo_acu_jan_sp, as.matrix(r_jan_gi.fixed))
+r_acu_apr.gi <- cbind(recovered_geo_acu_apr_sp, as.matrix(r_apr_gi.fixed))
+r_acu_jul.gi <- cbind(recovered_geo_acu_jul_sp, as.matrix(r_jul_gi.fixed))
+r_acu_sep.gi <- cbind(recovered_geo_acu_sep_sp, as.matrix(r_sep_gi.fixed))
+r_acu.gi <- cbind(recovered_geo_acu_sp, as.matrix(r_acu_gi.fixed))
+
+d_acu_jan.gi <- cbind(death_geo_acu_jan_sp, as.matrix(d_jan_gi.fixed))
+d_acu_apr.gi <- cbind(death_geo_acu_apr_sp, as.matrix(d_apr_gi.fixed))
+d_acu_jul.gi <- cbind(death_geo_acu_jul_sp, as.matrix(d_jul_gi.fixed))
+d_acu_sep.gi <- cbind(death_geo_acu_sep_sp, as.matrix(d_sep_gi.fixed))
+d_acu.gi <- cbind(death_geo_acu_sp, as.matrix(d_acu_gi.fixed))
+```
+
+```{r}
+names(c_acu_jan.gi)[17] <- "gstat"
+names(c_acu_apr.gi)[17] <- "gstat"
+names(c_acu_jul.gi)[17] <- "gstat"
+names(c_acu_sep.gi)[17] <- "gstat"
+names(c_acu.gi)[17] <- "gstat"
+
+names(r_acu_jan.gi)[17] <- "gstat"
+names(r_acu_apr.gi)[17] <- "gstat"
+names(r_acu_jul.gi)[17] <- "gstat"
+names(r_acu_sep.gi)[17] <- "gstat"
+names(r_acu.gi)[17] <- "gstat"
+
+names(d_acu_jan.gi)[17] <- "gstat"
+names(d_acu_apr.gi)[17] <- "gstat"
+names(d_acu_jul.gi)[17] <- "gstat"
+names(d_acu_sep.gi)[17] <- "gstat"
+names(d_acu.gi)[17] <- "gstat"
+```
+
+## Computing Gi statistics using adaptive distance
+```{r}
+c_jan_gi.adaptive <- localG(confirmed_geo_acu_jan_sp$confirmed_cumul_count, knb_c_jan_lw)
+c_apr_gi.adaptive <- localG(confirmed_geo_acu_apr_sp$confirmed_cumul_count, knb_c_apr_lw)
+c_jul_gi.adaptive <- localG(confirmed_geo_acu_jul_sp$confirmed_cumul_count, knb_c_jul_lw)
+c_sep_gi.adaptive <- localG(confirmed_geo_acu_sep_sp$confirmed_cumul_count, knb_c_sep_lw)
+c_acu_gi.adaptive <- localG(confirmed_geo_acu_sp$confirmed_cumul_count, knb_c_acu_lw)
+
+r_jan_gi.adaptive <- localG(recovered_geo_acu_jan_sp$recovered_cumul_count, knb_r_jan_lw)
+r_apr_gi.adaptive <- localG(recovered_geo_acu_apr_sp$recovered_cumul_count, knb_r_apr_lw)
+r_jul_gi.adaptive <- localG(recovered_geo_acu_jul_sp$recovered_cumul_count, knb_r_jul_lw)
+r_sep_gi.adaptive <- localG(recovered_geo_acu_sep_sp$recovered_cumul_count, knb_r_sep_lw)
+r_acu_gi.adaptive <- localG(recovered_geo_acu_sp$recovered_cumul_count, knb_r_acu_lw)
+
+d_jan_gi.adaptive <- localG(death_geo_acu_jan_sp$death_cumul_count, knb_d_jan_lw)
+d_apr_gi.adaptive <- localG(death_geo_acu_apr_sp$death_cumul_count, knb_d_apr_lw)
+d_jul_gi.adaptive <- localG(death_geo_acu_jul_sp$death_cumul_count, knb_d_jul_lw)
+d_sep_gi.adaptive <- localG(death_geo_acu_sep_sp$death_cumul_count, knb_d_sep_lw)
+d_acu_gi.adaptive <- localG(death_geo_acu_sp$death_cumul_count, knb_d_acu_lw)
+```
+
+```{r}
+c_acu_jan.gi.adaptive <- cbind(confirmed_geo_acu_jan_sp, as.matrix(c_jan_gi.adaptive))
+c_acu_apr.gi.adaptive <- cbind(confirmed_geo_acu_apr_sp, as.matrix(c_apr_gi.adaptive))
+c_acu_jul.gi.adaptive <- cbind(confirmed_geo_acu_jul_sp, as.matrix(c_jul_gi.adaptive))
+c_acu_sep.gi.adaptive <- cbind(confirmed_geo_acu_sep_sp, as.matrix(c_sep_gi.adaptive))
+c_acu.gi.adaptive <- cbind(confirmed_geo_acu_sp, as.matrix(c_acu_gi.adaptive))
+
+r_acu_jan.gi.adaptive <- cbind(recovered_geo_acu_jan_sp, as.matrix(r_jan_gi.adaptive))
+r_acu_apr.gi.adaptive <- cbind(recovered_geo_acu_apr_sp, as.matrix(r_apr_gi.adaptive))
+r_acu_jul.gi.adaptive <- cbind(recovered_geo_acu_jul_sp, as.matrix(r_jul_gi.adaptive))
+r_acu_sep.gi.adaptive <- cbind(recovered_geo_acu_sep_sp, as.matrix(r_sep_gi.adaptive))
+r_acu.gi.adaptive <- cbind(recovered_geo_acu_sp, as.matrix(r_acu_gi.adaptive))
+
+d_acu_jan.gi.adaptive <- cbind(death_geo_acu_jan_sp, as.matrix(d_jan_gi.adaptive))
+d_acu_apr.gi.adaptive <- cbind(death_geo_acu_apr_sp, as.matrix(d_apr_gi.adaptive))
+d_acu_jul.gi.adaptive <- cbind(death_geo_acu_jul_sp, as.matrix(d_jul_gi.adaptive))
+d_acu_sep.gi.adaptive <- cbind(death_geo_acu_sep_sp, as.matrix(d_sep_gi.adaptive))
+d_acu.gi.adaptive <- cbind(death_geo_acu_sp, as.matrix(d_acu_gi.adaptive))
+```
+
+```{r}
+names(c_acu_jan.gi.adaptive)[17] <- "gstat_adaptive"
+names(c_acu_apr.gi.adaptive)[17] <- "gstat_adaptive"
+names(c_acu_jul.gi.adaptive)[17] <- "gstat_adaptive"
+names(c_acu_sep.gi.adaptive)[17] <- "gstat_adaptive"
+names(c_acu.gi.adaptive)[17] <- "gstat_adaptive"
+
+names(r_acu_jan.gi.adaptive)[17] <- "gstat_adaptive"
+names(r_acu_apr.gi.adaptive)[17] <- "gstat_adaptive"
+names(r_acu_jul.gi.adaptive)[17] <- "gstat_adaptive"
+names(r_acu_sep.gi.adaptive)[17] <- "gstat_adaptive"
+names(r_acu.gi.adaptive)[17] <- "gstat_adaptive"
+
+names(d_acu_jan.gi.adaptive)[17] <- "gstat_adaptive"
+names(d_acu_apr.gi.adaptive)[17] <- "gstat_adaptive"
+names(d_acu_jul.gi.adaptive)[17] <- "gstat_adaptive"
+names(d_acu_sep.gi.adaptive)[17] <- "gstat_adaptive"
+names(d_acu.gi.adaptive)[17] <- "gstat_adaptive"
+```
+
+## Visualising local Gi
+Mapping of Fixed and Adaptive
+
+### Mapping out Hot & Cold Analysis for Fixed and Adaptive with GI Statistic
+
+#### Mapping Gi values with fixed distance weights
+```{r}
+#Confirmed
+tm_shape(c_acu_jan.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+tm_shape(c_acu_apr.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+tm_shape(c_acu_jul.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+tm_shape(c_acu_sep.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+tm_shape(c_acu.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+#Recovered
+tm_shape(r_acu_jan.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+tm_shape(r_acu_apr.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+tm_shape(r_acu_jul.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+tm_shape(r_acu_sep.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+tm_shape(r_acu.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+#Death
+tm_shape(d_acu_jan.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+tm_shape(d_acu_apr.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+tm_shape(d_acu_jul.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+tm_shape(d_acu_sep.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+
+tm_shape(d_acu.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+```
+
+### Mapping Gi values with adaptive distance weights
+```{r}
+#Confirmed
+tm_shape(c_acu_jan.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+tm_shape(c_acu_apr.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+tm_shape(c_acu_jul.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+tm_shape(c_acu_sep.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+tm_shape(c_acu.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+#Recovered
+tm_shape(r_acu_jan.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+tm_shape(r_acu_apr.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+tm_shape(r_acu_jul.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+tm_shape(r_acu_sep.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+tm_shape(r_acu.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+#Death
+tm_shape(d_acu_jan.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+tm_shape(d_acu_apr.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+tm_shape(d_acu_jul.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+tm_shape(d_acu_sep.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+
+tm_shape(d_acu.gi.adaptive) +
+  tm_fill(col = "gstat_adaptive", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5) +
+  tmap_options(max.categories = 7)
+```
+
+
+
+# Global Moran
+
+```{r}
+set.ZeroPolicyOption(TRUE)
+```
+# nblist style = "B"
+
+### Rook Contiguity Matrix
+
+#### Confirmed cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+c_globalMI_rook_b <- 
+  moran.test(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+             listw=rsc_wm_r_b, zero.policy = TRUE, 
+             na.action=na.omit)
+
+c_globalMI_rook_b
+```
+Moran I statistics is 0.305, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+c_perm_rook_b <- moran.mc(
+  confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+  listw=rsc_wm_r_b, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+c_perm_rook_b
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(c_perm_rook_b$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., rsc_wm_r_b)
+```
+
+#### Recovered Cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+r_globalMI_rook_b <- 
+  moran.test(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             listw=rsr_wm_r_b, zero.policy = TRUE, na.action=na.omit)
+
+r_globalMI_rook_b
+```
+Moran I statistics is 0.317, which suggest that data was spatially clustered, with strong evidence to prove it.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+r_perm_rook_b <- moran.mc(
+  recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+  listw=rsr_wm_r_b, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+r_perm_rook_b
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(r_perm_rook_b$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., rsr_wm_r_b)
+```
+
+#### Death cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+d_globalMI_rook_b <- 
+  moran.test(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             listw=rsd_wm_r_b, zero.policy = TRUE, 
+             na.action=na.omit)
+
+d_globalMI_rook_b
+```
+Moran I statistics is 1.43, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+d_perm_rook_b <- moran.mc(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+                  listw=rsd_wm_r_b, nsim=999, zero.policy = TRUE,
+                  na.action=na.omit)
+d_perm_rook_b
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(d_perm_rook_b$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(death_geo_sp$Covid.19.death.rate..Per.10.000., rsd_wm_r_b)
+```
+
+
+
+### Queen Contiguity Matrix
+
+#### Confirmed cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+c_globalMI_queen_b <- 
+  moran.test(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+             listw=rsc_wm_q_b, zero.policy = TRUE, 
+             na.action=na.omit)
+
+c_globalMI_queen_b
+```
+Moran I statistics is 0.305, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+c_perm_queen_b <- moran.mc(
+  confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+  listw=rsc_wm_q_b, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+c_perm_queen_b
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(c_perm_queen_b$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., rsc_wm_q_b)
+```
+
+#### Recovered Cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+r_globalMI_queen_b <- 
+  moran.test(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             listw=rsr_wm_q_b, zero.policy = TRUE, na.action=na.omit)
+
+r_globalMI_queen_b
+```
+Moran I statistics is 0.317, which suggest that data was spatially clustered, with strong evidence to prove it.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+r_perm_queen_b <- moran.mc(
+  recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+  listw=rsr_wm_q_b, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+r_perm_queen_b
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(r_perm_queen_b$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., rsr_wm_q_b)
+```
+
+#### Death cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+d_globalMI_queen_b <- 
+  moran.test(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             listw=rsd_wm_q_b, zero.policy = TRUE, 
+             na.action=na.omit)
+
+d_globalMI_queen_b
+```
+Moran I statistics is 1.43, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+d_perm_queen_b <- moran.mc(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+                  listw=rsd_wm_q_b, nsim=999, zero.policy = TRUE,
+                  na.action=na.omit)
+d_perm_queen_b
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(d_perm_queen_b$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(death_geo_sp$Covid.19.death.rate..Per.10.000., rsd_wm_q_b)
+```
+
+
+### Fixed Matrix
+
+#### Confirmed cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+c_globalMI_fix_b <- 
+  moran.test(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+             listw=rsc_wm_d4_fix_b, zero.policy = TRUE, 
+             na.action=na.omit)
+
+c_globalMI_fix_b
+```
+Moran I statistics is 0.305, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+c_perm_fix_b <- moran.mc(
+  confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+  listw=rsc_wm_d4_fix_b, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+c_perm_fix_b
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(c_perm_fix_b$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., rsc_wm_d4_fix_b)
+```
+
+#### Recovered Cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+r_globalMI_fix_b <- 
+  moran.test(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             listw=rsr_wm_d4_fix_b, zero.policy = TRUE, na.action=na.omit)
+
+r_globalMI_fix_b
+```
+Moran I statistics is 0.317, which suggest that data was spatially clustered, with strong evidence to prove it.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+r_perm_fix_b <- moran.mc(
+  recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+  listw=rsr_wm_d4_fix_b, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+r_perm_fix_b
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(r_perm_fix_b$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., rsr_wm_d4_fix_b)
+```
+
+#### Death cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+d_globalMI_fix_b <- 
+  moran.test(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             listw=rsd_wm_d5_fix_b, zero.policy = TRUE, 
+             na.action=na.omit)
+
+d_globalMI_fix_b
+```
+Moran I statistics is 1.43, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+d_perm_fix_b <- moran.mc(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+                  listw=rsd_wm_d5_fix_b, nsim=999, zero.policy = TRUE,
+                  na.action=na.omit)
+d_perm_fix_b
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(d_perm_fix_b$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(death_geo_sp$Covid.19.death.rate..Per.10.000., rsd_wm_d5_fix_b)
+```
+
+
+### Adaptive Matrix
+
+#### Confirmed cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+c_globalMI_adap_b <- 
+  moran.test(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+             listw=rsc_knn4_adap_b, zero.policy = TRUE, 
+             na.action=na.omit)
+
+c_globalMI_adap_b
+```
+Moran I statistics is 0.305, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+c_perm_adap_b <- moran.mc(
+  confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+  listw=rsc_knn4_adap_b, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+c_perm_adap_b
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(c_perm_adap_b$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., rsc_knn4_adap_b)
+```
+
+#### Recovered Cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+r_globalMI_adap_b <- 
+  moran.test(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             listw=rsr_knn4_adap_b, zero.policy = TRUE, na.action=na.omit)
+
+r_globalMI_adap_b
+```
+Moran I statistics is 0.317, which suggest that data was spatially clustered, with strong evidence to prove it.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+r_perm_adap_b <- moran.mc(
+  recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+  listw=rsr_knn4_adap_b, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+r_perm_adap_b
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(r_perm_adap_b$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., rsr_knn4_adap_b)
+```
+
+#### Death cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+d_globalMI_adap_b <- 
+  moran.test(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             listw=rsd_knn5_adap_b, zero.policy = TRUE, 
+             na.action=na.omit)
+
+d_globalMI_adap_b
+```
+Moran I statistics is 1.43, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+d_perm_adap_b <- moran.mc(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+                  listw=rsd_knn5_adap_b, nsim=999, zero.policy = TRUE,
+                  na.action=na.omit)
+d_perm_adap_b
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(d_perm_adap_b$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(death_geo_sp$Covid.19.death.rate..Per.10.000., rsd_knn5_adap_b)
+```
+
+# nblist style = "W"
+
+### Rook Contiguity Matrix
+
+#### Confirmed cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+c_globalMI_rook_w <- 
+  moran.test(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+             listw=rsc_wm_r_w, zero.policy = TRUE, 
+             na.action=na.omit)
+
+c_globalMI_rook_w
+```
+Moran I statistics is 0.305, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+c_perm_rook_w <- moran.mc(
+  confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+  listw=rsc_wm_r_w, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+c_perm_rook_w
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(c_perm_rook_w$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., rsc_wm_r_w)
+```
+
+#### Recovered Cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+r_globalMI_rook_w <- 
+  moran.test(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             listw=rsr_wm_r_w, zero.policy = TRUE, na.action=na.omit)
+
+r_globalMI_rook_w
+```
+Moran I statistics is 0.317, which suggest that data was spatially clustered, with strong evidence to prove it.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+r_perm_rook_w <- moran.mc(
+  recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+  listw=rsr_wm_r_w, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+r_perm_rook_w
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(r_perm_rook_w$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., rsr_wm_r_w)
+```
+
+#### Death cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+d_globalMI_rook_w <- 
+  moran.test(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             listw=rsd_wm_r_w, zero.policy = TRUE, 
+             na.action=na.omit)
+
+d_globalMI_rook_w
+```
+Moran I statistics is 1.43, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+d_perm_rook_w <- moran.mc(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+                  listw=rsd_wm_r_w, nsim=999, zero.policy = TRUE,
+                  na.action=na.omit)
+d_perm_rook_w
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(d_perm_rook_w$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(death_geo_sp$Covid.19.death.rate..Per.10.000., rsd_wm_r_w)
+```
+
+
+### Queen Contiguity Matrix
+
+#### Confirmed cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+c_globalMI_queen_w <- 
+  moran.test(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+             listw=rsc_wm_q_w, zero.policy = TRUE, 
+             na.action=na.omit)
+
+c_globalMI_queen_w
+```
+Moran I statistics is 0.305, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+c_perm_queen_w <- moran.mc(
+  confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+  listw=rsc_wm_q_w, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+c_perm_queen_w
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(c_perm_queen_w$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., rsc_wm_q_w)
+```
+
+#### Recovered Cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+r_globalMI_queen_w <- 
+  moran.test(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             listw=rsr_wm_q_w, zero.policy = TRUE, na.action=na.omit)
+
+r_globalMI_queen_w
+```
+Moran I statistics is 0.317, which suggest that data was spatially clustered, with strong evidence to prove it.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+r_perm_queen_w <- moran.mc(
+  recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+  listw=rsr_wm_q_w, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+r_perm_queen_w
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(r_perm_queen_w$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., rsr_wm_q_w)
+```
+
+#### Death cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+d_globalMI_queen_w <- 
+  moran.test(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             listw=rsd_wm_q_w, zero.policy = TRUE, 
+             na.action=na.omit)
+
+d_globalMI_queen_w
+```
+Moran I statistics is 1.43, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+d_perm_queen_w <- moran.mc(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+                  listw=rsd_wm_q_w, nsim=999, zero.policy = TRUE,
+                  na.action=na.omit)
+d_perm_queen_w
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(d_perm_queen_w$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(death_geo_sp$Covid.19.death.rate..Per.10.000., rsd_wm_q_w)
+```
+
+
+### Fixed Matrix
+
+#### Confirmed cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+c_globalMI_fix_w <- 
+  moran.test(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+             listw=rsc_wm_d4_fix_w, zero.policy = TRUE, 
+             na.action=na.omit)
+
+c_globalMI_fix_w
+```
+Moran I statistics is 0.305, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+c_perm_fix_w <- moran.mc(
+  confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+  listw=rsc_wm_d4_fix_w, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+c_perm_fix_w
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(c_perm_fix_w$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., rsc_wm_d4_fix_w)
+```
+
+#### Recovered Cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+r_globalMI_fix_w <- 
+  moran.test(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             listw=rsr_wm_d4_fix_w, zero.policy = TRUE, na.action=na.omit)
+
+r_globalMI_fix_w
+```
+Moran I statistics is 0.317, which suggest that data was spatially clustered, with strong evidence to prove it.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+r_perm_fix_w <- moran.mc(
+  recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+  listw=rsr_wm_d4_fix_w, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+r_perm_fix_w
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(r_perm_fix_w$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., rsr_wm_d4_fix_w, zero.policy = TRUE)
+```
+
+#### Death cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+d_globalMI_fix_w <- 
+  moran.test(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             listw=rsd_wm_d5_fix_w, zero.policy = TRUE, 
+             na.action=na.omit)
+
+d_globalMI_fix_w
+```
+Moran I statistics is 1.43, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+d_perm_fix_w <- moran.mc(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+                  listw=rsd_wm_d5_fix_w, nsim=999, zero.policy = TRUE,
+                  na.action=na.omit)
+d_perm_fix_w
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(d_perm_fix_w$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(death_geo_sp$Covid.19.death.rate..Per.10.000., rsd_wm_d5_fix_w)
+```
+
+
+### Adaptive Matrix
+
+#### Confirmed cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+c_globalMI_adap_w <- 
+  moran.test(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+             listw=rsc_knn4_adap_w, zero.policy = TRUE, 
+             na.action=na.omit)
+
+c_globalMI_adap_w
+```
+Moran I statistics is 0.305, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+c_perm_adap_w <- moran.mc(
+  confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000.,
+  listw=rsc_knn4_adap_w, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+c_perm_adap_w
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(c_perm_adap_w$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., rsc_knn4_adap_w)
+```
+
+#### Recovered Cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+r_globalMI_adap_w <- 
+  moran.test(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+             listw=rsr_knn4_adap_w, zero.policy = TRUE, na.action=na.omit)
+
+r_globalMI_adap_w
+```
+Moran I statistics is 0.317, which suggest that data was spatially clustered, with strong evidence to prove it.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+r_perm_adap_w <- moran.mc(
+  recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., 
+  listw=rsr_knn4_adap_w, nsim=999, zero.policy = TRUE,
+  na.action=na.omit)
+r_perm_adap_w
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(r_perm_adap_w$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., rsr_knn4_adap_w)
+```
+
+#### Death cases
+
+##### Computing Global Moran I Statistics
+
+```{r}
+d_globalMI_adap_w <- 
+  moran.test(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+             listw=rsd_knn5_adap_w, zero.policy = TRUE, 
+             na.action=na.omit)
+
+d_globalMI_adap_w
+```
+Moran I statistics is 1.43, hence data spatially cluster.
+P-value also shows a strong evidence that data is spatially cluster.
+
+##### Compute Monte Carlo global Moran I
+
+```{r}
+set.seed(1234)
+d_perm_adap_w <- moran.mc(death_geo_sp$Covid.19.death.rate..Per.10.000., 
+                  listw=rsd_knn5_adap_w, nsim=999, zero.policy = TRUE,
+                  na.action=na.omit)
+d_perm_adap_w
+```
+Monte Carlo Simulation also shows evidence of spatially cluster.
+
+##### Plot histogram for Monte Carlo Global Moran I
+
+```{r}
+hist(d_perm_adap_w$res, freq=TRUE, breaks=20, xlab="Simulated Moran's I")
+abline(v=0, col="red") 
+```
+
+
+##### Plot local moran Scatterplot
+
+```{r}
+moran.plot(death_geo_sp$Covid.19.death.rate..Per.10.000., rsd_knn5_adap_w)
+```
+
+
+
+
 
 
 
