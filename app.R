@@ -83,8 +83,7 @@ confirmed_geo <- left_join(confirmed_final, china_3415, by = c("City_EN" = "City
 confirmed_geo <- confirmed_geo %>%
     mutate(`Covid'19 confirmed rate (Per 10,000)` = confirmed_cumul_count / (as.numeric(pop2010)/10000))
 confirmed_geo_sf <- st_as_sf(confirmed_geo)
-confirmed_geo_sf <- confirmed_geo_sf[!st_is_empty(confirmed_geo_sf),,drop=FALSE]
-#confirmed_geo_sf <- confirmed_geo_sf[, c(1:6, 24, 43:44)]
+confirmed_geo_sf <- confirmed_geo_sf[, c(1:6, 24, 43:44)]
 
 
 # Recovered Cases in each City
@@ -278,7 +277,7 @@ recovered_geo_sf_sum <- recovered_geo_sf %>%
     filter(as.numeric(`month`) >= 1,
            as.numeric(`month`) <= 7) %>%
     dplyr::select(-`month`) %>%
-    summarise(recovered_new_count = sum(`recovered_new_count`)) %>%recovered_geo_sf_sum
+    summarise(recovered_new_count = sum(`recovered_new_count`)) %>%
     mutate("Covid'19 recovered rate (Per 10,000)" = (as.numeric(`recovered_new_count`)/(as.numeric(`pop2010`)/10000)))
 
 # Death
@@ -371,7 +370,7 @@ d_fips <- order(death_geo_sp$City_EN)
 ## nb2listw() Style = "W" -- Equal Weight
 ### Rook Contiguity Based  Matrix
 #### Confirmed Cases
-c_localMI_r_w <- localmoran(confirmed_geo_sp$confirmed_cumul_count, rsc_wm_r_w)
+c_localMI_r_w <- localmoran(confirmed_geo_sp$Covid.19.confirmed.rate..Per.10.000., rsc_wm_r_w)
 confirmed_geo_sp.confirmed_localMI_r_w <- cbind(confirmed_geo_sp,c_localMI_r_w)
 #### Recovered Cases
 r_localMI_r_w <- localmoran(recovered_geo_sp$Covid.19.recovered.rate..Per.10.000., rsr_wm_r_w)
@@ -453,17 +452,16 @@ death_geo_sp.death_localMI_adap_b <- cbind(death_geo_sp,d_localMI_adap_b)
 
 # Confirmed
 confirmed_geo_sf_sum <- confirmed_geo_sf %>%
-  group_by(`City_EN`, `Prov_EN`, `pop2010`) 
-# %>%
-#   filter(as.numeric(`month`) >= 1,
-#          as.numeric(`month`) <= 7) %>%
-#   dplyr::select(-`month`) %>%
-#   summarise(confirmed_new_count = sum(`confirmed_new_count`)) %>%
-#   mutate("Covid'19 confirmed rate (Per 10,000)" = (as.numeric(`confirmed_new_count`)/(as.numeric(`pop2010`)/10000)))
+  group_by(`City_EN`, `Prov_EN`, `pop2010`) %>%
+  filter(as.numeric(`month`) >= 1,
+         as.numeric(`month`) <= 7) %>%
+  dplyr::select(-`month`) %>%
+  summarise(confirmed_new_count = sum(`confirmed_new_count`)) %>%
+  mutate("Covid'19 confirmed rate (Per 10,000)" = (as.numeric(`confirmed_new_count`)/(as.numeric(`pop2010`)/10000)))
 
 confirmed_geo_2 <- left_join(confirmed_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
-# confirmed_geo_2 <- confirmed_geo_2 %>%
-#   mutate(`confirmed_cumul_count` = confirmed_cumul_count / (as.numeric(pop2010)/10000))
+confirmed_geo_2 <- confirmed_geo_2 %>%
+  mutate(`confirmed_cumul_count` = confirmed_cumul_count / (as.numeric(pop2010)/10000))
 confirmed_geo_acu_sf <- st_as_sf(confirmed_geo_2)
 
 confirmed_geo_acu_sf <- confirmed_geo_acu_sf %>%
@@ -1076,10 +1074,11 @@ server <- function(input, output, session) {
       val <- eval(paste(input$corrinputcase, "_cumul_count", sep = ""))
       wm <- paste0("rs", input$corrinputcase, "_acu_", input$corrmonthInput, "_wm_", input$corrinputmatrix, "_", input$corrinputtype)
       df_get <- get(df)
-      moran.plot(as.vector(na.omit(as.numeric(df_get$val))), get(wm))
+      
+      moran.plot(as.vector(na.omit(df_get$val)), get(wm))
     })
     
-    set.ZeroPolicyOption(TRUE)
+    
 
     lisa_fun <- reactive({
       df <- paste0(input$corrinputcase, "_geo_acu_", input$corrmonthInput, "_sp")
@@ -1087,7 +1086,7 @@ server <- function(input, output, session) {
       wm <- paste0("rs", input$corrinputcase, "_acu_", input$corrmonthInput, "_wm_", input$corrinputmatrix, "_", input$corrinputtype)
       df_get <- get(df)
       
-      localMI <- localmoran(as.vector(na.omit(as.numeric(df_get$val))),get(wm))
+      localMI <- localmoran(as.vector(na.omit(df_get$val)),get(wm))
       localMI_bind <- cbind(df,localMI)
       
       c_quadrant<-vector(mode="numeric",length=nrow(localMI))
