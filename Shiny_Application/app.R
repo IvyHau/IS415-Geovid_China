@@ -5,6 +5,7 @@
 # Find out more about building applications with Shiny here:
 #
 #    http://shiny.rstudio.com/
+
 #
 library(leaflet)
 library(shiny)
@@ -19,6 +20,9 @@ library(tidyverse)
 library(sf)
 library(tmap)
 library(spdep)
+library(ggthemes)
+
+gc()
 
 # Load Data
 city_confirmed <- read_csv("data/aspatial/City_Confirmed_0115_1010.csv")
@@ -213,50 +217,51 @@ total_geo_sf <- st_set_crs(total_geo_sf,3415)
 
 # Create Boxmap
 
-boxbreaks <- function(vr, mult = 1.5) {
-    q <- unname(quantile(vr, na.rm = TRUE))
-    iqr <- q[4] - q[2]
-    upfence <- q[4] + mult * iqr
-    lofence <- q[2] - mult * iqr
+boxbreaks <- function(v,mult=1.5) {
+    qv <- quantile(v, na.rm = TRUE)
+    iqr <- qv[4] - qv[2]
+    upfence <- qv[4] + mult * iqr
+    lofence <- qv[2] - mult * iqr
+    # initialize break points vector
     bb <- vector(mode="numeric",length=7)
-    if (lofence < q[1])  {
+    # logic for lower and upper fences
+    if (lofence < qv[1]) {  # no lower outliers
         bb[1] <- lofence
-        bb[2] <- floor(q[1])
+        bb[2] <- floor(qv[1])
     } else {
         bb[2] <- lofence
-        bb[1] <- q[1]
+        bb[1] <- qv[1]
     }
-    if (upfence > q[5]) {
+    if (upfence > qv[5]) { # no upper outliers
         bb[7] <- upfence
-        bb[6] <- ceiling(q[5])
+        bb[6] <- ceiling(qv[5])
     } else {
         bb[6] <- upfence
-        bb[7] <- q[5]
+        bb[7] <- qv[5]
     }
-    bb[3:5] <- q[2:4]
+    bb[3:5] <- qv[2:4]
     return(bb)
 }
 
 get.var <- function(vname,df) {
+    vname <- as.character(vname)
     v <- df[vname] %>% st_set_geometry(NULL)
     v <- unname(v[,1])
     return(v)
 }
 
-boxmap <- function(var,df,vname, legtitle=NA,mtitle="Box Map",mult=1.5){
+boxmap <- function(vnam,df,legtitle=NA,mtitle="Box Map",mult=1.5){
     var <- get.var(vnam,df)
     bb <- boxbreaks(var)
-    
     tm_shape(df) +
-        tm_fill(vname, title = legtitle, breaks = bb, palette = "-RdBu", labels = c("lower outlier", "< 25%", "25% - 50%", "50% - 75%","> 75%", "upper outlier")) +
+        tm_fill(vnam,title=legtitle,breaks=bb,palette="-RdBu",
+                labels = c("lower outlier", "< 25%", "25% - 50%", "50% - 75%","> 75%", "upper outlier"))  +
         tm_borders() +
-        tm_layout(main.title = mtitle,
-                  main.title.position = c("center","top"),
-                  legend.outside = TRUE)
+        tm_layout(title = mtitle, title.position = c("right","bottom"))
 }
 
 
-
+set.ZeroPolicyOption(TRUE)
 # Confirmed
 confirmed_geo_sf_sum <- confirmed_geo_sf %>%
     group_by(`City_EN`, `Prov_EN`, `pop2010`) %>%
@@ -445,20 +450,370 @@ recovered_geo_sp.recovered_localMI_adap_b <- cbind(recovered_geo_sp,r_localMI_ad
 d_localMI_adap_b <- localmoran(death_geo_sp$Covid.19.death.rate..Per.10.000., rsd_knn5_adap_b)
 death_geo_sp.death_localMI_adap_b <- cbind(death_geo_sp,d_localMI_adap_b)
 
+# Confirmed
+confirmed_geo_sf_sum <- confirmed_geo_sf %>%
+  group_by(`City_EN`, `Prov_EN`, `pop2010`) %>%
+  filter(as.numeric(`month`) >= 1,
+         as.numeric(`month`) <= 7) %>%
+  dplyr::select(-`month`) %>%
+  summarise(confirmed_new_count = sum(`confirmed_new_count`)) %>%
+  mutate("Covid'19 confirmed rate (Per 10,000)" = (as.numeric(`confirmed_new_count`)/(as.numeric(`pop2010`)/10000)))
 
+confirmed_geo_2 <- left_join(confirmed_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
+confirmed_geo_2 <- confirmed_geo_2 %>%
+  mutate(confirmed_cumul_count = confirmed_cumul_count / (as.numeric(pop2010)/10000))
+confirmed_geo_acu_sf <- st_as_sf(confirmed_geo_2)
+
+confirmed_geo_acu_sf <- confirmed_geo_acu_sf %>%
+  group_by(`City_EN`, `Prov_EN`, `pop2010`)
+
+confirmed_geo_acu_jan_sf <- confirmed_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 1)
+
+confirmed_geo_acu_apr_sf <- confirmed_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 4)
+
+confirmed_geo_acu_jul_sf <- confirmed_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 7)
+
+confirmed_geo_acu_sep_sf <- confirmed_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 9)
+
+# Recovered
+recovered_geo_sf_sum <- recovered_geo_sf %>%
+  group_by(`City_EN`, `Prov_EN`, `pop2010`) %>%
+  filter(as.numeric(`month`) >= 1,
+         as.numeric(`month`) <= 7) %>%
+  dplyr::select(-`month`) %>%
+  summarise(recovered_new_count = sum(`recovered_new_count`)) %>%
+  mutate("Covid'19 recovered rate (Per 10,000)" = (as.numeric(`recovered_new_count`)/(as.numeric(`pop2010`)/10000)))
+
+recovered_geo_2 <- left_join(recovered_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
+recovered_geo_acu_sf <- st_as_sf(recovered_geo_2)
+
+recovered_geo_acu_sf <- recovered_geo_acu_sf %>%
+  group_by(`City_EN`, `Prov_EN`, `pop2010`)
+
+recovered_geo_acu_jan_sf <- recovered_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 1)
+
+recovered_geo_acu_apr_sf <- recovered_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 4)
+
+recovered_geo_acu_jul_sf <- recovered_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 7)
+
+recovered_geo_acu_sep_sf <- recovered_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 9)
+
+# Death
+death_geo_sf_sum <- death_geo_sf %>%
+  group_by(`City_EN`, `Prov_EN`, `pop2010`) %>%
+  filter(as.numeric(`month`) >= 1,
+         as.numeric(`month`) <= 7) %>%
+  dplyr::select(-`month`) %>%
+  summarise(death_new_count = sum(`death_new_count`)) %>%
+  mutate("Covid'19 death rate (Per 10,000)" = (as.numeric(`death_new_count`)/(as.numeric(`pop2010`)/10000)))
+
+death_geo_2 <- left_join(death_final, china_3415, by = c("City_EN" = "City_EN",  'Prov_EN' = 'Prov_EN'))
+death_geo_acu_sf <- st_as_sf(death_geo_2)
+
+death_geo_acu_sf <- death_geo_acu_sf %>%
+  group_by(`City_EN`, `Prov_EN`, `pop2010`)
+
+death_geo_acu_jan_sf <- death_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 1)
+
+death_geo_acu_apr_sf <- death_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 4)
+
+death_geo_acu_jul_sf <- death_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 7)
+
+death_geo_acu_sep_sf <- death_geo_acu_sf %>%
+  filter(as.numeric(`month`) == 9)
+
+confirmed_geo_sp <- sf:::as_Spatial(confirmed_geo_sf_sum)
+confirmed_geo_acu_sp <- sf::: as_Spatial(confirmed_geo_acu_sf)
+confirmed_geo_acu_jan_sp <- sf:::as_Spatial(confirmed_geo_acu_jan_sf)
+confirmed_geo_acu_apr_sp <- sf:::as_Spatial(confirmed_geo_acu_apr_sf)
+confirmed_geo_acu_jul_sp <- sf:::as_Spatial(confirmed_geo_acu_jul_sf)
+confirmed_geo_acu_sep_sp <- sf:::as_Spatial(confirmed_geo_acu_sep_sf)
+
+rsconfirmed_wm_q_w <- nb2listw(confirmed_wm_q, style = "W", zero.policy = TRUE)
+rsconfirmed_wm_q_b <- nb2listw(confirmed_wm_q, style = "B", zero.policy = TRUE)
+
+confirmed_acu_wm_q <- poly2nb(confirmed_geo_acu_sp, queen=TRUE)
+confirmed_acu_jan_wm_q <- poly2nb(confirmed_geo_acu_jan_sp, queen=TRUE)
+confirmed_acu_apr_wm_q <- poly2nb(confirmed_geo_acu_apr_sp, queen=TRUE)
+confirmed_acu_jul_wm_q <- poly2nb(confirmed_geo_acu_jul_sp, queen=TRUE)
+confirmed_acu_sep_wm_q <- poly2nb(confirmed_geo_acu_sep_sp, queen=TRUE)
+
+rsconfirmed_acu_wm_q_w <- nb2listw(confirmed_acu_wm_q, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_jan_wm_q_w <- nb2listw(confirmed_acu_jan_wm_q, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_apr_wm_q_w <- nb2listw(confirmed_acu_apr_wm_q, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_jul_wm_q_w <- nb2listw(confirmed_acu_jul_wm_q, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_sep_wm_q_w <- nb2listw(confirmed_acu_sep_wm_q, style = "W", zero.policy = TRUE)
+
+rsconfirmed_acu_wm_q_b <- nb2listw(confirmed_acu_wm_q, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_jan_wm_q_b <- nb2listw(confirmed_acu_jan_wm_q, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_apr_wm_q_b <- nb2listw(confirmed_acu_apr_wm_q, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_jul_wm_q_b <- nb2listw(confirmed_acu_jul_wm_q, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_sep_wm_q_b <- nb2listw(confirmed_acu_sep_wm_q, style = "B", zero.policy = TRUE)
+
+confirmed_acu_jan_wm_r <- poly2nb(confirmed_geo_acu_jan_sp, queen=FALSE)
+confirmed_acu_apr_wm_r <- poly2nb(confirmed_geo_acu_apr_sp, queen=FALSE)
+confirmed_acu_jul_wm_r <- poly2nb(confirmed_geo_acu_jul_sp, queen=FALSE)
+confirmed_acu_sep_wm_r <- poly2nb(confirmed_geo_acu_sep_sp, queen=FALSE)
+
+rsconfirmed_acu_jan_wm_r_w <- nb2listw(confirmed_acu_jan_wm_r, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_apr_wm_r_w <- nb2listw(confirmed_acu_apr_wm_r, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_jul_wm_r_w <- nb2listw(confirmed_acu_jul_wm_r, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_sep_wm_r_w <- nb2listw(confirmed_acu_sep_wm_r, style = "W", zero.policy = TRUE)
+
+rsconfirmed_acu_jan_wm_r_b <- nb2listw(confirmed_acu_jan_wm_r, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_apr_wm_r_b <- nb2listw(confirmed_acu_apr_wm_r, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_jul_wm_r_b <- nb2listw(confirmed_acu_jul_wm_r, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_sep_wm_r_b <- nb2listw(confirmed_acu_sep_wm_r, style = "B", zero.policy = TRUE)
+
+c_coords <- coordinates(confirmed_geo_sp)
+c_wm_d4 <- dnearneigh(c_coords, 0, 4, longlat = FALSE)
+
+confirmed_coords_jan_wm <- coordinates(confirmed_geo_acu_jan_sp)
+confirmed_coords_apr_wm <- coordinates(confirmed_geo_acu_apr_sp)
+confirmed_coords_jul_wm <- coordinates(confirmed_geo_acu_jul_sp)
+confirmed_coords_sep_wm <- coordinates(confirmed_geo_acu_sep_sp)
+
+confirmed_wm_d4_jan_wm_fix <- dnearneigh(confirmed_coords_jan_wm, 0, 4, longlat = FALSE)
+confirmed_wm_d4_apr_wm_fix <- dnearneigh(confirmed_coords_apr_wm, 0, 4, longlat = FALSE)
+confirmed_wm_d4_jul_wm_fix <- dnearneigh(confirmed_coords_jul_wm, 0, 4, longlat = FALSE)
+confirmed_wm_d4_sep_wm_fix <- dnearneigh(confirmed_coords_sep_wm, 0, 4, longlat = FALSE)
+
+rsc_wm_d4_fix_w <- nb2listw(c_wm_d4, style = "W", zero.policy = TRUE)
+
+rsconfirmed_acu_jan_wm_fix_w <- nb2listw(confirmed_wm_d4_jan_wm_fix, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_apr_wm_fix_w <- nb2listw(confirmed_wm_d4_apr_wm_fix, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_jul_wm_fix_w <- nb2listw(confirmed_wm_d4_jul_wm_fix, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_sep_wm_fix_w <- nb2listw(confirmed_wm_d4_sep_wm_fix, style = "W", zero.policy = TRUE)
+
+rsconfirmed_acu_jan_wm_fix_b <- nb2listw(confirmed_wm_d4_jan_wm_fix, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_apr_wm_fix_b <- nb2listw(confirmed_wm_d4_apr_wm_fix, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_d4_jul_wm_fix_b <- nb2listw(confirmed_wm_d4_jul_wm_fix, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_d4_sep_wm_fix_b <- nb2listw(confirmed_wm_d4_sep_wm_fix, style = "B", zero.policy = TRUE)
+
+c_knn4 <- knn2nb(knearneigh(c_coords, k=4))
+
+confirmed_knn4_jan_wm_adap <- knn2nb(knearneigh(confirmed_coords_jan_wm, k=4))
+confirmed_knn4_apr_wm_adap <- knn2nb(knearneigh(confirmed_coords_apr_wm, k=4))
+confirmed_knn4_jul_wm_adap <- knn2nb(knearneigh(confirmed_coords_jul_wm, k=4))
+confirmed_knn4_sep_wm_adap <- knn2nb(knearneigh(confirmed_coords_sep_wm, k=4))
+
+rsconfirmed_acu_jan_wm_adap_w <- nb2listw(confirmed_knn4_jan_wm_adap, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_apr_wm_adap_w <- nb2listw(confirmed_knn4_apr_wm_adap, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_jul_wm_adap_w <- nb2listw(confirmed_knn4_jul_wm_adap, style = "W", zero.policy = TRUE)
+rsconfirmed_acu_sep_wm_adap_w <- nb2listw(confirmed_knn4_sep_wm_adap, style = "W", zero.policy = TRUE)
+
+rsconfirmed_acu_jan_wm_adap_b <- nb2listw(confirmed_knn4_jan_wm_adap, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_apr_wm_adap_b <- nb2listw(confirmed_knn4_apr_wm_adap, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_jul_wm_adap_b <- nb2listw(confirmed_knn4_jul_wm_adap, style = "B", zero.policy = TRUE)
+rsconfirmed_acu_sep_wm_adap_b <- nb2listw(confirmed_knn4_sep_wm_adap, style = "B", zero.policy = TRUE)
+
+recovered_geo_sp <- sf:::as_Spatial(recovered_geo_sf_sum)
+recovered_geo_acu_sp <- sf:::as_Spatial(recovered_geo_acu_sf)
+recovered_geo_acu_jan_sp <- sf:::as_Spatial(recovered_geo_acu_jan_sf)
+recovered_geo_acu_apr_sp <- sf:::as_Spatial(recovered_geo_acu_apr_sf)
+recovered_geo_acu_jul_sp <- sf:::as_Spatial(recovered_geo_acu_jul_sf)
+recovered_geo_acu_sep_sp <- sf:::as_Spatial(recovered_geo_acu_sep_sf)
+
+rsrecovered_wm_q_w <- nb2listw(recovered_wm_q, style = "W", zero.policy = TRUE)
+rsrecovered_wm_q_b <- nb2listw(recovered_wm_q, style = "B", zero.policy = TRUE)
+
+recovered_acu_wm_q <- poly2nb(recovered_geo_acu_sp, queen=TRUE)
+recovered_acu_jan_wm_q <- poly2nb(recovered_geo_acu_jan_sp, queen=TRUE)
+recovered_acu_apr_wm_q <- poly2nb(recovered_geo_acu_apr_sp, queen=TRUE)
+recovered_acu_jul_wm_q <- poly2nb(recovered_geo_acu_jul_sp, queen=TRUE)
+recovered_acu_sep_wm_q <- poly2nb(recovered_geo_acu_sep_sp, queen=TRUE)
+
+rsrecovered_acu_wm_q_w <- nb2listw(recovered_acu_wm_q, style = "W", zero.policy = TRUE)
+rsrecovered_acu_jan_wm_q_w <- nb2listw(recovered_acu_jan_wm_q, style = "W", zero.policy = TRUE)
+rsrecovered_acu_apr_wm_q_w <- nb2listw(recovered_acu_apr_wm_q, style = "W", zero.policy = TRUE)
+rsrecovered_acu_jul_wm_q_w <- nb2listw(recovered_acu_jul_wm_q, style = "W", zero.policy = TRUE)
+rsrecovered_acu_sep_wm_q_w <- nb2listw(recovered_acu_sep_wm_q, style = "W", zero.policy = TRUE)
+
+rsrecovered_acu_wm_q_b <- nb2listw(recovered_acu_wm_q, style = "B", zero.policy = TRUE)
+rsrecovered_acu_jan_wm_q_b <- nb2listw(recovered_acu_jan_wm_q, style = "B", zero.policy = TRUE)
+rsrecovered_acu_apr_wm_q_b <- nb2listw(recovered_acu_apr_wm_q, style = "B", zero.policy = TRUE)
+rsrecovered_acu_jul_wm_q_b <- nb2listw(recovered_acu_jul_wm_q, style = "B", zero.policy = TRUE)
+rsrecovered_acu_sep_wm_q_b <- nb2listw(recovered_acu_sep_wm_q, style = "B", zero.policy = TRUE)
+
+recovered_acu_jan_wm_r <- poly2nb(recovered_geo_acu_jan_sp, queen=FALSE)
+recovered_acu_apr_wm_r <- poly2nb(recovered_geo_acu_apr_sp, queen=FALSE)
+recovered_acu_jul_wm_r <- poly2nb(recovered_geo_acu_jul_sp, queen=FALSE)
+recovered_acu_sep_wm_r <- poly2nb(recovered_geo_acu_sep_sp, queen=FALSE)
+
+rsrecovered_acu_jan_wm_r_w <- nb2listw(recovered_acu_jan_wm_r, style = "W", zero.policy = TRUE)
+rsrecovered_acu_apr_wm_r_w <- nb2listw(recovered_acu_apr_wm_r, style = "W", zero.policy = TRUE)
+rsrecovered_acu_jul_wm_r_w <- nb2listw(recovered_acu_jul_wm_r, style = "W", zero.policy = TRUE)
+rsrecovered_acu_sep_wm_r_w <- nb2listw(recovered_acu_sep_wm_r, style = "W", zero.policy = TRUE)
+
+rsrecovered_acu_jan_wm_r_b <- nb2listw(recovered_acu_jan_wm_r, style = "B", zero.policy = TRUE)
+rsrecovered_acu_apr_wm_r_b <- nb2listw(recovered_acu_apr_wm_r, style = "B", zero.policy = TRUE)
+rsrecovered_acu_jul_wm_r_b <- nb2listw(recovered_acu_jul_wm_r, style = "B", zero.policy = TRUE)
+rsrecovered_acu_sep_wm_r_b <- nb2listw(recovered_acu_sep_wm_r, style = "B", zero.policy = TRUE)
+
+r_coords <- coordinates(recovered_geo_sp)
+r_wm_d4 <- dnearneigh(r_coords, 0, 4, longlat = FALSE)
+
+recovered_coords_jan_wm <- coordinates(recovered_geo_acu_jan_sp)
+recovered_coords_apr_wm <- coordinates(recovered_geo_acu_apr_sp)
+recovered_coords_jul_wm <- coordinates(recovered_geo_acu_jul_sp)
+recovered_coords_sep_wm <- coordinates(recovered_geo_acu_sep_sp)
+
+recovered_wm_d4_jan_wm_fix <- dnearneigh(recovered_coords_jan_wm, 0, 4, longlat = FALSE)
+recovered_wm_d4_apr_wm_fix <- dnearneigh(recovered_coords_apr_wm, 0, 4, longlat = FALSE)
+recovered_wm_d4_jul_wm_fix <- dnearneigh(recovered_coords_jul_wm, 0, 4, longlat = FALSE)
+recovered_wm_d4_sep_wm_fix <- dnearneigh(recovered_coords_sep_wm, 0, 4, longlat = FALSE)
+
+rsr_wm_d4_fix_w <- nb2listw(r_wm_d4, style = "W", zero.policy = TRUE)
+rsr_wm_d4_fix_b <- nb2listw(r_wm_d4, style = "B", zero.policy = TRUE)
+
+rsrecovered_acu_jan_wm_fix_w <- nb2listw(recovered_wm_d4_jan_wm_fix, style = "W", zero.policy = TRUE)
+rsrecovered_acu_apr_wm_fix_w <- nb2listw(recovered_wm_d4_apr_wm_fix, style = "W", zero.policy = TRUE)
+rsrecovered_acu_jul_wm_fix_w <- nb2listw(recovered_wm_d4_jul_wm_fix, style = "W", zero.policy = TRUE)
+rsrecovered_acu_sep_wm_fix_w <- nb2listw(recovered_wm_d4_sep_wm_fix, style = "W", zero.policy = TRUE)
+
+rsrecovered_acu_jan_wm_fix_b <- nb2listw(recovered_wm_d4_jan_wm_fix, style = "B", zero.policy = TRUE)
+rsrecovered_acu_apr_wm_fix_b <- nb2listw(recovered_wm_d4_apr_wm_fix, style = "B", zero.policy = TRUE)
+rsrecovered_acu_jul_wm_fix_b <- nb2listw(recovered_wm_d4_jul_wm_fix, style = "B", zero.policy = TRUE)
+rsrecovered_acu_sep_wm_fix_b <- nb2listw(recovered_wm_d4_sep_wm_fix, style = "B", zero.policy = TRUE)
+
+recovered_knn4_jan_wm_adap <- knn2nb(knearneigh(recovered_coords_jan_wm, k=4))
+recovered_knn4_apr_wm_adap <- knn2nb(knearneigh(recovered_coords_apr_wm, k=4))
+recovered_knn4_jul_wm_adap <- knn2nb(knearneigh(recovered_coords_jul_wm, k=4))
+recovered_knn4_sep_wm_adap <- knn2nb(knearneigh(recovered_coords_sep_wm, k=4))
+
+rsrecovered_acu_jan_wm_adap_w <- nb2listw(recovered_knn4_jan_wm_adap, style = "W", zero.policy = TRUE)
+rsrecovered_acu_apr_wm_adap_w <- nb2listw(recovered_knn4_apr_wm_adap, style = "W", zero.policy = TRUE)
+rsrecovered_acu_jul_wm_adap_w <- nb2listw(recovered_knn4_jul_wm_adap, style = "W", zero.policy = TRUE)
+rsrecovered_acu_sep_wm_adap_w <- nb2listw(recovered_knn4_sep_wm_adap, style = "W", zero.policy = TRUE)
+
+rsrecovered_acu_jan_wm_adap_b <- nb2listw(recovered_knn4_jan_wm_adap, style = "B", zero.policy = TRUE)
+rsrecovered_acu_apr_wm_adap_b <- nb2listw(recovered_knn4_apr_wm_adap, style = "B", zero.policy = TRUE)
+rsrecovered_acu_jul_wm_adap_b <- nb2listw(recovered_knn4_jul_wm_adap, style = "B", zero.policy = TRUE)
+rsrecovered_acu_sep_wm_adap_b <- nb2listw(recovered_knn4_sep_wm_adap, style = "B", zero.policy = TRUE)
+
+death_geo_sf_sum <- death_geo_sf_sum[!st_is_empty(death_geo_sf_sum),,drop=FALSE]
+death_geo_acu_sf <- death_geo_acu_sf[!st_is_empty(death_geo_acu_sf),,drop=FALSE]
+
+death_geo_acu_jan_sf <- death_geo_acu_jan_sf[!st_is_empty(death_geo_acu_jan_sf),,drop=FALSE]
+death_geo_acu_apr_sf <- death_geo_acu_apr_sf[!st_is_empty(death_geo_acu_apr_sf),,drop=FALSE]
+death_geo_acu_jul_sf <- death_geo_acu_jul_sf[!st_is_empty(death_geo_acu_jul_sf),,drop=FALSE]
+death_geo_acu_sep_sf <- death_geo_acu_sep_sf[!st_is_empty(death_geo_acu_sep_sf),,drop=FALSE]
+
+death_geo_sp <- sf:::as_Spatial(death_geo_sf_sum)
+death_geo_acu_sp <- sf:::as_Spatial(death_geo_acu_sf)
+death_geo_acu_jan_sp <- sf:::as_Spatial(death_geo_acu_jan_sf)
+death_geo_acu_apr_sp <- sf:::as_Spatial(death_geo_acu_apr_sf)
+death_geo_acu_jul_sp <- sf:::as_Spatial(death_geo_acu_jul_sf)
+death_geo_acu_sep_sp <- sf:::as_Spatial(death_geo_acu_sep_sf)
+
+rsdeath_wm_q_w <- nb2listw(death_wm_q, style = "W", zero.policy = TRUE)
+rsdeath_wm_q_b <- nb2listw(death_wm_q, style = "B", zero.policy = TRUE)
+
+death_acu_wm_q <- poly2nb(death_geo_acu_sp, queen=TRUE)
+death_acu_jan_wm_q <- poly2nb(death_geo_acu_jan_sp, queen=TRUE)
+death_acu_apr_wm_q <- poly2nb(death_geo_acu_apr_sp, queen=TRUE)
+death_acu_jul_wm_q <- poly2nb(death_geo_acu_jul_sp, queen=TRUE)
+death_acu_sep_wm_q <- poly2nb(death_geo_acu_sep_sp, queen=TRUE)
+
+rsdeath_acu_wm_q_w <- nb2listw(death_acu_wm_q, style = "W", zero.policy = TRUE)
+rsdeath_acu_jan_wm_q_w <- nb2listw(death_acu_jan_wm_q, style = "W", zero.policy = TRUE)
+rsdeath_acu_apr_wm_q_w <- nb2listw(death_acu_apr_wm_q, style = "W", zero.policy = TRUE)
+rsdeath_acu_jul_wm_q_w <- nb2listw(death_acu_jul_wm_q, style = "W", zero.policy = TRUE)
+rsdeath_acu_sep_wm_q_w <- nb2listw(death_acu_sep_wm_q, style = "W", zero.policy = TRUE)
+
+rsdeath_acu_wm_q_b <- nb2listw(death_acu_wm_q, style = "B", zero.policy = TRUE)
+rsdeath_acu_jan_wm_q_b <- nb2listw(death_acu_jan_wm_q, style = "B", zero.policy = TRUE)
+rsdeath_acu_apr_wm_q_b <- nb2listw(death_acu_apr_wm_q, style = "B", zero.policy = TRUE)
+rsdeath_acu_jul_wm_q_b <- nb2listw(death_acu_jul_wm_q, style = "B", zero.policy = TRUE)
+rsdeath_acu_sep_wm_q_b <- nb2listw(death_acu_sep_wm_q, style = "B", zero.policy = TRUE)
+
+death_acu_jan_wm_r <- poly2nb(death_geo_acu_jan_sp, queen=FALSE)
+death_acu_apr_wm_r <- poly2nb(death_geo_acu_apr_sp, queen=FALSE)
+death_acu_jul_wm_r <- poly2nb(death_geo_acu_jul_sp, queen=FALSE)
+death_acu_sep_wm_r <- poly2nb(death_geo_acu_sep_sp, queen=FALSE)
+
+rsdeath_acu_jan_wm_r_w <- nb2listw(death_acu_jan_wm_r, style = "W", zero.policy = TRUE)
+rsdeath_acu_apr_wm_r_w <- nb2listw(death_acu_apr_wm_r, style = "W", zero.policy = TRUE)
+rsdeath_acu_jul_wm_r_w <- nb2listw(death_acu_jul_wm_r, style = "W", zero.policy = TRUE)
+rsdeath_acu_sep_wm_r_w <- nb2listw(death_acu_sep_wm_r, style = "W", zero.policy = TRUE)
+
+rsdeath_acu_jan_wm_r_b <- nb2listw(death_acu_jan_wm_r, style = "B", zero.policy = TRUE)
+rsdeath_acu_apr_wm_r_b <- nb2listw(death_acu_apr_wm_r, style = "B", zero.policy = TRUE)
+rsdeath_acu_jul_wm_r_b <- nb2listw(death_acu_jul_wm_r, style = "B", zero.policy = TRUE)
+rsdeath_acu_sep_wm_r_b <- nb2listw(death_acu_sep_wm_r, style = "B", zero.policy = TRUE)
+
+d_coords <- coordinates(death_geo_sp)
+d_wm_d5 <- dnearneigh(d_coords, 0, 5, longlat = FALSE)
+
+death_coords_jan_wm <- coordinates(death_geo_acu_jan_sp)
+death_coords_apr_wm <- coordinates(death_geo_acu_apr_sp)
+death_coords_jul_wm <- coordinates(death_geo_acu_jul_sp)
+death_coords_sep_wm <- coordinates(death_geo_acu_sep_sp)
+
+death_wm_d5_jan_wm_fix <- dnearneigh(death_coords_jan_wm, 0, 5, longlat = FALSE)
+death_wm_d5_apr_wm_fix <- dnearneigh(death_coords_apr_wm, 0, 5, longlat = FALSE)
+death_wm_d5_jul_wm_fix <- dnearneigh(death_coords_jul_wm, 0, 5, longlat = FALSE)
+death_wm_d5_sep_wm_fix <- dnearneigh(death_coords_sep_wm, 0, 5, longlat = FALSE)
+
+rsd_wm_d5_fix_w <- nb2listw(d_wm_d5, style = "W", zero.policy = TRUE)
+rsd_wm_d5_fix_b <- nb2listw(d_wm_d5, style = "B", zero.policy = TRUE)
+
+rsdeath_acu_jan_wm_fix_w <- nb2listw(death_wm_d5_jan_wm_fix, style = "W", zero.policy = TRUE)
+rsdeath_acu_apr_wm_fix_w <- nb2listw(death_wm_d5_apr_wm_fix, style = "W", zero.policy = TRUE)
+rsdeath_acu_jul_wm_fix_w <- nb2listw(death_wm_d5_jul_wm_fix, style = "W", zero.policy = TRUE)
+rsdeath_acu_sep_wm_fix_w <- nb2listw(death_wm_d5_sep_wm_fix, style = "W", zero.policy = TRUE)
+
+rsdeath_acu_jan_wm_fix_b <- nb2listw(death_wm_d5_jan_wm_fix, style = "B", zero.policy = TRUE)
+rsdeath_acu_apr_wm_fix_b <- nb2listw(death_wm_d5_apr_wm_fix, style = "B", zero.policy = TRUE)
+rsdeath_acu_jul_wm_fix_b <- nb2listw(death_wm_d5_jul_wm_fix, style = "B", zero.policy = TRUE)
+rsdeath_acu_sep_wm_fix_b <- nb2listw(death_wm_d5_sep_wm_fix, style = "B", zero.policy = TRUE)
+
+death_knn5_jan_wm_adap <- knn2nb(knearneigh(death_coords_jan_wm, k=5))
+death_knn5_apr_wm_adap <- knn2nb(knearneigh(death_coords_apr_wm, k=5))
+death_knn5_jul_wm_adap <- knn2nb(knearneigh(death_coords_jul_wm, k=5))
+death_knn5_sep_wm_adap <- knn2nb(knearneigh(death_coords_sep_wm, k=5))
+
+rsdeath_acu_jan_wm_adap_w <- nb2listw(death_knn5_jan_wm_adap, style = "W", zero.policy = TRUE)
+rsdeath_acu_apr_wm_adap_w <- nb2listw(death_knn5_apr_wm_adap, style = "W", zero.policy = TRUE)
+rsdeath_acu_jul_wm_adap_w <- nb2listw(death_knn5_jul_wm_adap, style = "W", zero.policy = TRUE)
+rsdeath_acu_sep_wm_adap_w <- nb2listw(death_knn5_sep_wm_adap, style = "W", zero.policy = TRUE)
+
+rsdeath_acu_jan_wm_adap_b <- nb2listw(death_knn5_jan_wm_adap, style = "B", zero.policy = TRUE)
+rsdeath_acu_apr_wm_adap_b <- nb2listw(death_knn5_apr_wm_adap, style = "B", zero.policy = TRUE)
+rsdeath_acu_jul_wm_adap_b <- nb2listw(death_knn5_jul_wm_adap, style = "B", zero.policy = TRUE)
+rsdeath_acu_sep_wm_adap_b <- nb2listw(death_knn5_sep_wm_adap, style = "B", zero.policy = TRUE)
+
+
+confirmed_wm_r <- poly2nb(confirmed_geo_sp, queen=FALSE)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage( theme = shinytheme("flatly"),
                  
      # Navigation Bar
-     navbarPage("Geovid", fluid=TRUE, windowTitle="Geo-spatial Analysis for Covid in China ", selected="eda",
+     navbarPage(title="Geovid",
+                fluid=TRUE, windowTitle="Geo-spatial Analysis for Covid in China ", selected="eda",
+      
+       
 
         # EDA Tab Panel
-        tabPanel("EDA", value="eda", fluid=TRUE,
+        tabPanel("Exploratory Data Analysis", value="eda", fluid=TRUE,icon=icon("virus"),
+                 titlePanel("Exploratory Data Analysis"),
+                 br(),
             sidebarLayout(position="left", fluid=TRUE,
                 sidebarPanel(width=3, fluid=TRUE,
                      conditionalPanel(
-                         'input.EDAset === "choropleth" || input.EDAset === "boxmap"',
+                         'input.EDAset === "Choropleth" || input.EDAset === "Box Map" || input.EDAset === "Line Graph"',
                          sliderInput("monthInput",
                                      "Month",
                                      min = 01,
@@ -468,11 +823,12 @@ ui <- fluidPage( theme = shinytheme("flatly"),
                          radioGroupButtons(
                              inputId = "inputcase",
                              label = "Select one Input:",
-                             choices = c("confirmed" = "confirmed", 
-                                         "Recovered" = "recovered",
-                                         "Death" = "death"),
+                             choices = c("Confirmed Cases" = "confirmed", 
+                                         "Recovered Cases" = "recovered",
+                                         "Death Cases" = "death"),
                              direction = "vertical",
-                             justified = TRUE)
+                             justified = TRUE,
+                             selected = "confirmed")
                          )
                          
                      ),
@@ -481,30 +837,40 @@ ui <- fluidPage( theme = shinytheme("flatly"),
                                    (12,
                                        tabsetPanel(
                                            id = 'EDAset',
-                                           tabPanel("choropleth",
+                                           tabPanel("Line Graph",
+                                                    br(),
+                                                    p("Line Graphs shows the total number of cases of Covid-19 in each month, showing trends such as spikes and falls, as well as the changes over the period of nine months."),
+                                                    br(),
+                                                    fluidRow(
+                                                        column(12,
+                                                               plotOutput(outputId = "newPlot")),
+                                                        column(12,
+                                                               plotOutput(outputId = "cumulPlot")))
+                                           ),
+                                           tabPanel("Choropleth",
+                                                    br(),
+                                                    p("Choropleth mapping shows the distribution of cases at provincial-cities level in China. Areas with a higher and lower concentration of cases can be observed. "),
+                                                    br(),
                                                     column(12,
-                                                           leafletOutput(outputId="choropleth",
+                                                           plotOutput(outputId="choropleth",
                                                                         width = "100%",
                                                                         height = "400px")
                                                     )
                                            ),
-                                           tabPanel("boxmap",
+                                           tabPanel("Box Map",
+                                                    br(),
+                                                    p("Box map indicates the cities in China that lies on the outlier, using the interquartile range calculations to compute."),
+                                                    br(),
                                                     column(12,
                                                     plotOutput(outputId = "boxmap",
                                                                width="100%",
                                                                height="400px")
                                                     )
                                            )
+                                           
                                            ))
-                                   ),
+                                   )
 
-                          
-                              fluidRow(
-                                  column(6,
-                                         plotOutput(outputId = "newPlot")),
-                                  column(6,
-                                         plotOutput(outputId = "cumulPlot"))
-                              )
                           )
                           
                 
@@ -512,59 +878,54 @@ ui <- fluidPage( theme = shinytheme("flatly"),
                     )
            
             ),
-        tabPanel("CORR", value="corr", fluid=TRUE,
+        tabPanel("Spatial Autocorrelation Analysis", value="corr", fluid=TRUE,icon=icon("viruses"),
+                 titlePanel("Spatial Autocorrelation Analysis"),
+                 br(),
                  sidebarLayout(position="left", fluid=TRUE,
                                sidebarPanel(width=3, fluid=TRUE,
                                             conditionalPanel(
-                                                'input.CORRset === "Local Moran I"',
-                                                sliderInput("corrmonthInput",
-                                                            "Month",
-                                                            min = 1,
-                                                            max = 9,
-                                                            value = c(1,9),
-                                                            sep = ""),
-                                                radioGroupButtons(
-                                                    inputId = "corrinputcase",
-                                                    label = "Select one Input:",
-                                                    choices = c("confirmed" = "confirmed", 
-                                                                "Recovered" = "recovered",
-                                                                "Death" = "death"),
-                                                    checkIcon = list(
-                                                        yes = tags$i(class = "fa fa-check-square", 
-                                                                     style = "color: steelblue"),
-                                                        no = tags$i(class = "fa fa-square-o", 
-                                                                    style = "color: steelblue")),
-                                                    direction = "vertical",
-                                                    justified = TRUE, 
-                                                    selected = "confirmed"),
-                                                radioGroupButtons(
-                                                    inputId = "corrinputmatrix",
-                                                    label = "Select one Matrix:",
-                                                    choices = c("Rook" = "r", 
-                                                                "Queen" = "q",
-                                                                "Fixed" = "fix",
-                                                                "Adaptive" = "adap"),
-                                                    checkIcon = list(
-                                                        yes = tags$i(class = "fa fa-check-square", 
-                                                                     style = "color: steelblue"),
-                                                        no = tags$i(class = "fa fa-square-o", 
-                                                                    style = "color: steelblue")),
-                                                    direction = "vertical",
-                                                    justified = TRUE, 
-                                                    selected = "r"),
-                                                radioGroupButtons(
-                                                    inputId = "corrinputtype",
-                                                    label = "Select one Type:",
-                                                    choices = c("Binary" = "b", 
-                                                                "Row" = "w"),
-                                                    checkIcon = list(
-                                                        yes = tags$i(class = "fa fa-check-square", 
-                                                                     style = "color: steelblue"),
-                                                        no = tags$i(class = "fa fa-square-o", 
-                                                                    style = "color: steelblue")),
-                                                    direction = "vertical",
-                                                    justified = TRUE,
-                                                    selected = "b")
+                                                'input.CORRset === "LISA" || input.CORRset === "Moran I ScatterPlot"',
+                                                sliderTextInput(
+                                                  inputId = "corrmonthInput",
+                                                  label = "Month", 
+                                                  grid = TRUE,
+                                                  force_edges = TRUE,
+                                                  choices = c("1" = "jan",
+                                                              "4" = "apr",
+                                                              "7" = "jul",
+                                                              "9" = "sep")
+                                                )
+                                            ),
+                                            conditionalPanel(
+                                              'input.CORRset === "Local Moran I"||input.CORRset === "LISA" || input.CORRset === "Moran I ScatterPlot"',
+                                              
+                                              radioGroupButtons(
+                                                inputId = "corrinputcase",
+                                                label = "Select one Input:",
+                                                choices = c("Confirmed Cases" = "confirmed", 
+                                                            "Recovered Cases" = "recovered",
+                                                            "Death Cases" = "death"),
+                                                direction = "vertical",
+                                                justified = TRUE, 
+                                                selected = "confirmed"),
+                                              radioGroupButtons(
+                                                inputId = "corrinputmatrix",
+                                                label = "Select one Matrix:",
+                                                choices = c("Rook" = "r", 
+                                                            "Queen" = "q",
+                                                            "Fixed" = "fix",
+                                                            "Adaptive" = "adap"),
+                                                direction = "vertical",
+                                                justified = TRUE, 
+                                                selected = "r"),
+                                              radioGroupButtons(
+                                                inputId = "corrinputtype",
+                                                label = "Select one Type:",
+                                                choices = c("Binary" = "b", 
+                                                            "Row" = "w"),
+                                                direction = "vertical",
+                                                justified = TRUE,
+                                                selected = "b")
                                             )
                                             
                                ),
@@ -573,14 +934,40 @@ ui <- fluidPage( theme = shinytheme("flatly"),
                                                   (12,
                                                       tabsetPanel(
                                                           id = 'CORRset',
+                                                          
                                                           tabPanel("Local Moran I",
+                                                                   br(),
+                                                                   p("Local Moran's I shows the local correlation to its neighbours. The Local Moran's I Map shows the level of positive or negative correlation significance across different cities."),
+                                                                   br(),
                                                                    column(12,
                                                                           plotOutput(outputId="localmoran",
                                                                                      width = "100%",
                                                                                      height = "400px")
                                                                    )
+                                                          ),
+                                                          tabPanel("LISA",
+                                                                   br(),
+                                                                   p("Localized Indicator of Spatial Association (LISA) shows the clustering areas which have significant positive or negative correlation. Areas with no significant signs of correlation are categorized as insignificant."),
+                                                                   br(),
+                                                                   column(12,
+                                                                          plotOutput(outputId="lisa",
+                                                                                     width = "100%",
+                                                                                     height = "400px")
+                                                                   )
+                                                          ),
+                                                          tabPanel("Moran I ScatterPlot",
+                                                                   br(),
+                                                                   p("Moran's I Scatter plot shows the outliers in the study area. If points are above the best fit line, it indicates a positive correlation. Likewise, if it is below the best fit line, it indicates a negative correlation. In addition, we can also detect the presence of outliers based on the results."),
+                                                                   br(),
+                                                                   column(12,
+                                                                          plotOutput(outputId="morani",
+                                                                                     width = "100%",
+                                                                                     height = "400px")
+                                                                   )
                                                           )
-                                                      ))
+                                                      )
+                                                    
+                                                    )
                                          )
                                )
                                
@@ -588,9 +975,21 @@ ui <- fluidPage( theme = shinytheme("flatly"),
                                
                  )
                  
-        )
+        ),
+        
+        
+        # -----Data Panel
+        tabPanel("Data", value="data", fluid=TRUE, icon=icon("database"),
+               mainPanel( width=9,
+                         tabsetPanel(
+                             id = 'dataset',
+                             tabPanel("Confirmed Cases", DT::dataTableOutput("mytable1")),
+                             tabPanel("Recovered Cases", DT::dataTableOutput("mytable2")),
+                             tabPanel("Death Cases", DT::dataTableOutput("mytable3"))
+                         )
+               ))
+      )
      
-     )
 )
 
 
@@ -599,6 +998,7 @@ ui <- fluidPage( theme = shinytheme("flatly"),
 server <- function(input, output, session) {
 
     
+  
     plot_filter <- reactive({
         filtered <- total_cases %>%
             filter(as.numeric(`month`) >= as.numeric(as.character(input$monthInput[1])),
@@ -610,7 +1010,7 @@ server <- function(input, output, session) {
             group_by(`City_EN`, `Prov_EN`, `pop2010`) %>%
             filter(as.numeric(`month`) >= as.numeric(as.character(input$monthInput[1])),
                    as.numeric(`month`) <= as.numeric(as.character(input$monthInput[2]))) %>% 
-            select(-`month`) %>%
+            dplyr::select(-`month`) %>%
             summarise(confirmed_new_count = sum(`confirmed_new_count`),
                       recovered_new_count = sum(`recovered_new_count`),
                       death_new_count = sum(`death_new_count`)) %>%
@@ -618,14 +1018,14 @@ server <- function(input, output, session) {
                 "Covid'19 confirmed rate (Per 10,000)" = (as.numeric(`confirmed_new_count`)/(as.numeric(`pop2010`)/10000)),
                 "Covid'19 recovered rate (Per 10,000)" = (as.numeric(`recovered_new_count`)/(as.numeric(`pop2010`)/10000)),
                 "Covid'19 death rate (Per 10,000)" = (as.numeric(`death_new_count`)/(as.numeric(`pop2010`)/10000)))
+        #choro_filtered[is.na(choro_filtered)] <- 0
+        
     })
 
     localplot_filter <- reactive({
-        if (input$inputcase == "confirmed"){
+        if (input$corrinputcase == "confirmed"){
             confirmed_geo_sf_sum <- confirmed_geo_sf %>%
                 group_by(`City_EN`, `Prov_EN`, `pop2010`) %>%
-                filter(as.numeric(`month`) >= as.numeric(as.character(input$corrmonthInput[1])),
-                       as.numeric(`month`) <= as.numeric(as.character(input$corrmonthInput[2]))) %>%
                 dplyr::select(-`month`) %>%
                 summarise(confirmed_new_count = sum(`confirmed_new_count`)) %>%
                 mutate("Covid'19 confirmed rate (Per 10,000)" = (as.numeric(`confirmed_new_count`)/(as.numeric(`pop2010`)/10000)))
@@ -633,11 +1033,9 @@ server <- function(input, output, session) {
             confirmed_geo_sp <- sf:::as_Spatial(confirmed_geo_sf_sum)
             
         }
-        if (input$inputcase == "recovered"){
+        if (input$corrinputcase == "recovered"){
             recovered_geo_sf_sum <- recovered_geo_sf %>%
                 group_by(`City_EN`, `Prov_EN`, `pop2010`) %>%
-                filter(as.numeric(`month`) >= as.numeric(as.character(input$corrmonthInput[1])),
-                       as.numeric(`month`) <= as.numeric(as.character(input$corrmonthInput[2]))) %>%
                 dplyr::select(-`month`) %>%
                 summarise(recovered_new_count = sum(`recovered_new_count`)) %>%
                 mutate("Covid'19 recovered rate (Per 10,000)" = (as.numeric(`recovered_new_count`)/(as.numeric(`pop2010`)/10000)))  
@@ -647,8 +1045,6 @@ server <- function(input, output, session) {
         else {
             death_geo_sf_sum <- death_geo_sf %>%
                 group_by(`City_EN`, `Prov_EN`, `pop2010`) %>%
-                filter(as.numeric(`month`) >= as.numeric(as.character(input$corrmonthInput[1])),
-                       as.numeric(`month`) <= as.numeric(as.character(input$corrmonthInput[2]))) %>%
                 dplyr::select(-`month`) %>%
                 summarise(death_new_count = sum(`death_new_count`)) %>%
                 mutate("Covid'19 death rate (Per 10,000)" = (as.numeric(`death_new_count`)/(as.numeric(`pop2010`)/10000)))
@@ -656,10 +1052,1390 @@ server <- function(input, output, session) {
             death_geo_sp <- sf:::as_Spatial(death_geo_sf_sum)
             
         }
-        
-        
             
     })
+    
+    
+    
+    
+    output$mytable1 <- DT::renderDataTable({
+        DF <- as.data.frame(confirmed_geo_sf)
+        DF <- DF %>% 
+            mutate_if(is.numeric, round, digits = 3)
+        DT::datatable(DF,style = "bootstrap")
+    })
+    
+    output$mytable2 <- DT::renderDataTable({
+        DF <- as.data.frame(recovered_geo_sf)
+        DF <- DF %>% 
+            mutate_if(is.numeric, round, digits = 3)
+        DT::datatable(DF,style = "bootstrap")
+    })
+    
+    output$mytable3 <- DT::renderDataTable({
+        DF <- as.data.frame(death_geo_sf)
+        DF <- DF %>% 
+            mutate_if(is.numeric, round, digits = 3)
+        DT::datatable(DF,style = "bootstrap")
+    })
+    
+    observe ({ output$morani <- renderPlot({
+      if (input$corrinputtype == "w"){
+        if (input$corrinputmatrix == "r"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(confirmed_geo_acu_jan_sp$confirmed_cumul_count, rsconfirmed_acu_jan_wm_r_w, zero.policy = TRUE)
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(confirmed_geo_acu_apr_sp$confirmed_cumul_count, rsconfirmed_acu_apr_wm_r_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(confirmed_geo_acu_jul_sp$confirmed_cumul_count, rsconfirmed_acu_jul_wm_r_w, zero.policy = TRUE)
+            }
+            if (input$corrmonthInput == "sep") { 
+              moran.plot(confirmed_geo_acu_sep_sp$confirmed_cumul_count, rsconfirmed_acu_sep_wm_r_w, zero.policy = TRUE)
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(recovered_geo_acu_jan_sp$recovered_cumul_count, rsrecovered_acu_jan_wm_r_w, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(recovered_geo_acu_apr_sp$recovered_cumul_count, rsrecovered_acu_apr_wm_r_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(recovered_geo_acu_jul_sp$recovered_cumul_count, rsrecovered_acu_jul_wm_r_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(recovered_geo_acu_sep_sp$recovered_cumul_count, rsrecovered_acu_sep_wm_r_w, zero.policy = TRUE) 
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(death_geo_acu_jan_sp$death_cumul_count, rsdeath_acu_jan_wm_r_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(death_geo_acu_apr_sp$death_cumul_count, rsdeath_acu_apr_wm_r_w, zero.policy = TRUE)
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(death_geo_acu_jul_sp$death_cumul_count, rsdeath_acu_jul_wm_r_w, zero.policy = TRUE)
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(death_geo_acu_sep_sp$death_cumul_count, rsdeath_acu_sep_wm_r_w, zero.policy = TRUE)   
+            }
+          }
+          
+        }
+        
+        if (input$corrinputmatrix == "q"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(confirmed_geo_acu_jan_sp$confirmed_cumul_count, rsconfirmed_acu_jan_wm_q_w, zero.policy = TRUE)   
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(confirmed_geo_acu_apr_sp$confirmed_cumul_count, rsconfirmed_acu_apr_wm_q_w, zero.policy = TRUE)  
+              
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(confirmed_geo_acu_jul_sp$confirmed_cumul_count, rsconfirmed_acu_jul_wm_q_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(confirmed_geo_acu_sep_sp$confirmed_cumul_count, rsconfirmed_acu_sep_wm_q_w, zero.policy = TRUE)  
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(recovered_geo_acu_jan_sp$recovered_cumul_count, rsrecovered_acu_jan_wm_q_w, zero.policy = TRUE)
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(recovered_geo_acu_apr_sp$recovered_cumul_count, rsrecovered_acu_apr_wm_q_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(recovered_geo_acu_jul_sp$recovered_cumul_count, rsrecovered_acu_jul_wm_q_w, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(recovered_geo_acu_sep_sp$recovered_cumul_count, rsrecovered_acu_sep_wm_q_w, zero.policy = TRUE) 
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(death_geo_acu_jan_sp$death_cumul_count, rsdeath_acu_jan_wm_q_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(death_geo_acu_apr_sp$death_cumul_count, rsdeath_acu_apr_wm_q_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(death_geo_acu_jul_sp$death_cumul_count, rsdeath_acu_jul_wm_q_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(death_geo_acu_sep_sp$death_cumul_count, rsdeath_acu_sep_wm_q_w, zero.policy = TRUE) 
+            }
+          }
+        }
+        if (input$corrinputmatrix == "fix"){
+          if (input$corrmonthInput == "jan"){
+          moran.plot(confirmed_geo_acu_jan_sp$confirmed_cumul_count, rsconfirmed_acu_jan_wm_fix_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(confirmed_geo_acu_apr_sp$confirmed_cumul_count, rsconfirmed_acu_apr_wm_fix_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(confirmed_geo_acu_jul_sp$confirmed_cumul_count, rsconfirmed_acu_jul_wm_fix_w, zero.policy = TRUE)  
+            } 
+            if (input$corrmonthInput == "sep") {
+              moran.plot(confirmed_geo_acu_sep_sp$confirmed_cumul_count, rsconfirmed_acu_sep_wm_fix_w, zero.policy = TRUE)   
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(recovered_geo_acu_jan_sp$recovered_cumul_count, rsrecovered_acu_jan_wm_fix_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(recovered_geo_acu_apr_sp$recovered_cumul_count, rsrecovered_acu_apr_wm_fix_w, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(recovered_geo_acu_jul_sp$recovered_cumul_count, rsrecovered_acu_jul_wm_fix_w, zero.policy = TRUE)
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(recovered_geo_acu_sep_sp$recovered_cumul_count, rsrecovered_acu_sep_wm_fix_w, zero.policy = TRUE)
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(death_geo_acu_jan_sp$death_cumul_count, rsdeath_acu_jan_wm_fix_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(death_geo_acu_apr_sp$death_cumul_count, rsdeath_acu_apr_wm_fix_w, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(death_geo_acu_jul_sp$death_cumul_count, rsdeath_acu_jul_wm_fix_w, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(death_geo_acu_sep_sp$death_cumul_count, rsdeath_acu_sep_wm_fix_w, zero.policy = TRUE)   
+            }
+          }
+        }
+        
+        if (input$corrinputmatrix == "adap"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(confirmed_geo_acu_jan_sp$confirmed_cumul_count, rsconfirmed_acu_jan_wm_adap_w, zero.policy = TRUE)
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(confirmed_geo_acu_apr_sp$confirmed_cumul_count, rsconfirmed_acu_apr_wm_adap_w, zero.policy = TRUE)
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(confirmed_geo_acu_jul_sp$confirmed_cumul_count, rsconfirmed_acu_jul_wm_adap_w, zero.policy = TRUE)
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(confirmed_geo_acu_sep_sp$confirmed_cumul_count, rsconfirmed_acu_sep_wm_adap_w, zero.policy = TRUE) 
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(recovered_geo_acu_jan_sp$recovered_cumul_count, rsrecovered_acu_jan_wm_adap_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(recovered_geo_acu_apr_sp$recovered_cumul_count, rsrecovered_acu_apr_wm_adap_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(recovered_geo_acu_jul_sp$recovered_cumul_count, rsrecovered_acu_jul_wm_adap_w, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(recovered_geo_acu_sep_sp$recovered_cumul_count, rsrecovered_acu_sep_wm_adap_w, zero.policy = TRUE) 
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(death_geo_acu_jan_sp$death_cumul_count, rsdeath_acu_jan_wm_adap_w, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(death_geo_acu_apr_sp$death_cumul_count, rsdeath_acu_apr_wm_adap_w, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(death_geo_acu_jul_sp$death_cumul_count, rsdeath_acu_jul_wm_adap_w, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(death_geo_acu_sep_sp$death_cumul_count, rsdeath_acu_sep_wm_adap_w, zero.policy = TRUE)
+            }
+          }
+        }
+      }
+      else if (input$corrinputtype == "b"){
+        if (input$corrinputmatrix == "r"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(confirmed_geo_acu_jan_sp$confirmed_cumul_count, rsconfirmed_acu_jan_wm_r_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(confirmed_geo_acu_apr_sp$confirmed_cumul_count, rsconfirmed_acu_apr_wm_r_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(confirmed_geo_acu_jul_sp$confirmed_cumul_count, rsconfirmed_acu_jul_wm_r_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(confirmed_geo_acu_sep_sp$confirmed_cumul_count, rsconfirmed_acu_sep_wm_r_b, zero.policy = TRUE) 
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(recovered_geo_acu_jan_sp$recovered_cumul_count, rsrecovered_acu_jan_wm_r_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(recovered_geo_acu_apr_sp$recovered_cumul_count, rsrecovered_acu_apr_wm_r_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(recovered_geo_acu_jul_sp$recovered_cumul_count, rsrecovered_acu_jul_wm_r_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(recovered_geo_acu_sep_sp$recovered_cumul_count, rsrecovered_acu_sep_wm_r_b, zero.policy = TRUE)  
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(death_geo_acu_jan_sp$death_cumul_count, rsdeath_acu_jan_wm_r_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(death_geo_acu_apr_sp$death_cumul_count, rsdeath_acu_apr_wm_r_b, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(death_geo_acu_jul_sp$death_cumul_count, rsdeath_acu_jul_wm_r_b, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(death_geo_acu_sep_sp$death_cumul_count, rsdeath_acu_sep_wm_r_b, zero.policy = TRUE) 
+            }
+          }
+        }
+        
+        
+        if (input$corrinputmatrix == "q"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){ 
+              moran.plot(confirmed_geo_acu_jan_sp$confirmed_cumul_count, rsconfirmed_acu_jan_wm_q_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(confirmed_geo_acu_apr_sp$confirmed_cumul_count, rsconfirmed_acu_apr_wm_q_b, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(confirmed_geo_acu_jul_sp$confirmed_cumul_count, rsconfirmed_acu_jul_wm_q_b, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(confirmed_geo_acu_sep_sp$confirmed_cumul_count, rsconfirmed_acu_sep_wm_q_b, zero.policy = TRUE) 
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(recovered_geo_acu_jan_sp$recovered_cumul_count, rsrecovered_acu_jan_wm_q_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(recovered_geo_acu_apr_sp$recovered_cumul_count, rsrecovered_acu_apr_wm_q_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(recovered_geo_acu_jul_sp$recovered_cumul_count, rsrecovered_acu_jul_wm_q_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(recovered_geo_acu_sep_sp$recovered_cumul_count, rsrecovered_acu_sep_wm_q_b, zero.policy = TRUE) 
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(death_geo_acu_jan_sp$death_cumul_count, rsdeath_acu_jan_wm_q_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(death_geo_acu_apr_sp$death_cumul_count, rsdeath_acu_apr_wm_q_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(death_geo_acu_jul_sp$death_cumul_count, rsdeath_acu_jul_wm_q_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(death_geo_acu_sep_sp$death_cumul_count, rsdeath_acu_sep_wm_q_b, zero.policy = TRUE)
+            }
+          }
+        }
+        if (input$corrinputmatrix == "fix"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(confirmed_geo_acu_jan_sp$confirmed_cumul_count, rsconfirmed_acu_jan_wm_fix_b, zero.policy = TRUE)
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(confirmed_geo_acu_apr_sp$confirmed_cumul_count, rsconfirmed_acu_apr_wm_fix_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(confirmed_geo_acu_jul_sp$confirmed_cumul_count, rsconfirmed_acu_jul_wm_fix_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(confirmed_geo_acu_sep_sp$confirmed_cumul_count, rsconfirmed_acu_sep_wm_fix_b, zero.policy = TRUE) 
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(recovered_geo_acu_jan_sp$recovered_cumul_count, rsrecovered_acu_jan_wm_fix_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(recovered_geo_acu_apr_sp$recovered_cumul_count, rsrecovered_acu_apr_wm_fix_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(recovered_geo_acu_jul_sp$recovered_cumul_count, rsrecovered_acu_jul_wm_fix_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(recovered_geo_acu_sep_sp$recovered_cumul_count, rsrecovered_acu_sep_wm_fix_b, zero.policy = TRUE) 
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(death_geo_acu_jan_sp$death_cumul_count, rsdeath_acu_jan_wm_fix_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(death_geo_acu_apr_sp$death_cumul_count, rsdeath_acu_apr_wm_fix_b, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(death_geo_acu_jul_sp$death_cumul_count, rsdeath_acu_jul_wm_fix_b, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(death_geo_acu_sep_sp$death_cumul_count, rsdeath_acu_sep_wm_fix_b, zero.policy = TRUE) 
+            }
+          }
+        }
+        
+        if (input$corrinputmatrix == "adap"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(confirmed_geo_acu_jan_sp$confirmed_cumul_count, rsconfirmed_acu_jan_wm_adap_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(confirmed_geo_acu_apr_sp$confirmed_cumul_count, rsconfirmed_acu_apr_wm_adap_b, zero.policy = TRUE)  
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(confirmed_geo_acu_jul_sp$confirmed_cumul_count, rsconfirmed_acu_jul_wm_adap_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(confirmed_geo_acu_sep_sp$confirmed_cumul_count, rsconfirmed_acu_sep_wm_adap_b, zero.policy = TRUE) 
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(recovered_geo_acu_jan_sp$recovered_cumul_count, rsrecovered_acu_jan_wm_adap_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(recovered_geo_acu_apr_sp$recovered_cumul_count, rsrecovered_acu_apr_wm_adap_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(recovered_geo_acu_jul_sp$recovered_cumul_count, rsrecovered_acu_jul_wm_adap_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(recovered_geo_acu_sep_sp$recovered_cumul_count, rsrecovered_acu_sep_wm_adap_b, zero.policy = TRUE) 
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              moran.plot(death_geo_acu_jan_sp$death_cumul_count, rsdeath_acu_jan_wm_adap_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "apr"){
+              moran.plot(death_geo_acu_apr_sp$death_cumul_count, rsdeath_acu_apr_wm_adap_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "jul"){
+              moran.plot(death_geo_acu_jul_sp$death_cumul_count, rsdeath_acu_jul_wm_adap_b, zero.policy = TRUE) 
+            }
+            if (input$corrmonthInput == "sep") {
+              moran.plot(death_geo_acu_sep_sp$death_cumul_count, rsdeath_acu_sep_wm_adap_b, zero.policy = TRUE) 
+            }
+          }
+        }
+      }
+    })
+    })
+    
+    observe ({ output$lisa <- renderPlot ({
+      #df <- get(paste(input$corrinputcase, "_geo_acu_", input$corrmonthInput, "_sp", sep="")) %>% as.vector()
+      #wm <- get(paste("rs", input$corrinputcase, "_acu_", input$corrmonthInput, "_wm_", input$corrinputmatrix, "_", input$corrinputtype, sep = ""))
+      #v <- as.name(paste("Covid'19 ", input$corrinputcase, " rate (Per 10,000)", sep=""))
+      if (input$corrinputtype == "w"){
+        if (input$corrinputmatrix == "r"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jan_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jan_wm_r_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jan_sp,localMI)
+              confirmed_geo_acu_jan_sp$Z.cumulcount <- scale(confirmed_geo_acu_jan_sp$confirmed_cumul_count) %>% as.vector()
+              
+              DV <- confirmed_geo_acu_jan_sp$Z.cumulcount - mean(confirmed_geo_acu_jan_sp$Z.cumulcount)   
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_apr_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_apr_wm_r_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_apr_sp,localMI)
+              confirmed_geo_acu_apr_sp$Z.cumulcount <- scale(confirmed_geo_acu_apr_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_apr_sp$Z.cumulcount - mean(confirmed_geo_acu_apr_sp$Z.cumulcount)   
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jul_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jul_wm_r_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jul_sp,localMI)
+              confirmed_geo_acu_jul_sp$Z.cumulcount <- scale(confirmed_geo_acu_jul_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jul_sp$Z.cumulcount - mean(confirmed_geo_acu_jul_sp$Z.cumulcount)   
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(confirmed_geo_acu_sep_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_sep_wm_r_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_sep_sp,localMI)
+              confirmed_geo_acu_sep_sp$Z.cumulcount <- scale(confirmed_geo_acu_sep_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_sep_sp$Z.cumulcount - mean(confirmed_geo_acu_sep_sp$Z.cumulcount)   
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jan_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jan_wm_r_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jan_sp,localMI)
+              recovered_geo_acu_jan_sp$Z.cumulcount <- scale(recovered_geo_acu_jan_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jan_sp$Z.cumulcount - mean(recovered_geo_acu_jan_sp$Z.cumulcount)   
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(recovered_geo_acu_apr_sp$recovered_cumul_count, 
+                           rsrecovered_acu_apr_wm_r_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_apr_sp,localMI)
+              recovered_geo_acu_apr_sp$Z.cumulcount <- scale(recovered_geo_acu_apr_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_apr_sp$Z.cumulcount - mean(recovered_geo_acu_apr_sp$Z.cumulcount)   
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jul_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jul_wm_r_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jul_sp,localMI)
+              recovered_geo_acu_jul_sp$Z.cumulcount <- scale(recovered_geo_acu_jul_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jul_sp$Z.cumulcount - mean(recovered_geo_acu_jul_sp$Z.cumulcount)   
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(recovered_geo_acu_sep_sp$recovered_cumul_count, 
+                           rsrecovered_acu_sep_wm_r_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_sep_sp,localMI)
+              recovered_geo_acu_sep_sp$Z.cumulcount <- scale(recovered_geo_acu_sep_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_sep_sp$Z.cumulcount - mean(recovered_geo_acu_sep_sp$Z.cumulcount)   
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(death_geo_acu_jan_sp$death_cumul_count, 
+                           rsdeath_acu_jan_wm_r_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_jan_sp,localMI)
+              death_geo_acu_jan_sp$Z.cumulcount <- scale(death_geo_acu_jan_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jan_sp$Z.cumulcount - mean(death_geo_acu_jan_sp$Z.cumulcount)   
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(death_geo_acu_apr_sp$death_cumul_count, 
+                           rsdeath_acu_apr_wm_r_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_jan_sp,localMI)
+              death_geo_acu_apr_sp$Z.cumulcount <- scale(death_geo_acu_jan_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_apr_sp$Z.cumulcount - mean(death_geo_acu_apr_sp$Z.cumulcount)   
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(death_geo_acu_jul_sp$death_cumul_count, 
+                           rsdeath_acu_jul_wm_r_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_jul_sp,localMI)
+              death_geo_acu_jul_sp$Z.cumulcount <- scale(death_geo_acu_jul_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jul_sp$Z.cumulcount - mean(death_geo_acu_jul_sp$Z.cumulcount)   
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(death_geo_acu_sep_sp$death_cumul_count, 
+                           rsdeath_acu_sep_wm_r_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_sep_sp,localMI)
+              death_geo_acu_sep_sp$Z.cumulcount <- scale(death_geo_acu_sep_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_sep_sp$Z.cumulcount - mean(death_geo_acu_sep_sp$Z.cumulcount)   
+            }
+          }
+          
+        }
+        
+        if (input$corrinputmatrix == "q"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jan_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jan_wm_q_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jan_sp,localMI)
+              confirmed_geo_acu_jan_sp$Z.cumulcount <- scale(confirmed_geo_acu_jan_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jan_sp$Z.cumulcount - mean(confirmed_geo_acu_jan_sp$Z.cumulcount)   
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_apr_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_apr_wm_q_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_apr_sp,localMI)
+              confirmed_geo_acu_apr_sp$Z.cumulcount <- scale(confirmed_geo_acu_apr_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_apr_sp$Z.cumulcount - mean(confirmed_geo_acu_apr_sp$Z.cumulcount)   
+              
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jul_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jul_wm_q_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jul_sp,localMI)
+              confirmed_geo_acu_jul_sp$Z.cumulcount <- scale(confirmed_geo_acu_jul_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jul_sp$Z.cumulcount - mean(confirmed_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(confirmed_geo_acu_sep_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_sep_wm_q_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_sep_sp,localMI)
+              confirmed_geo_acu_sep_sp$Z.cumulcount <- scale(confirmed_geo_acu_sep_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_sep_sp$Z.cumulcount - mean(confirmed_geo_acu_sep_sp$Z.cumulcount)
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jan_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jan_wm_q_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jan_sp,localMI)
+              recovered_geo_acu_jan_sp$Z.cumulcount <- scale(recovered_geo_acu_jan_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jan_sp$Z.cumulcount - mean(recovered_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(recovered_geo_acu_apr_sp$recovered_cumul_count, 
+                           rsrecovered_acu_apr_wm_q_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_apr_sp,localMI)
+              recovered_geo_acu_apr_sp$Z.cumulcount <- scale(recovered_geo_acu_apr_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_apr_sp$Z.cumulcount - mean(recovered_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jul_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jul_wm_q_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jul_sp,localMI)
+              recovered_geo_acu_jul_sp$Z.cumulcount <- scale(recovered_geo_acu_jul_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jul_sp$Z.cumulcount - mean(recovered_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(recovered_geo_acu_sep_sp$recovered_cumul_count, 
+                           rsrecovered_acu_sep_wm_q_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_sep_sp,localMI)
+              recovered_geo_acu_sep_sp$Z.cumulcount <- scale(recovered_geo_acu_sep_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_sep_sp$Z.cumulcount - mean(recovered_geo_acu_sep_sp$Z.cumulcount)
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(death_geo_acu_jan_sp$death_cumul_count, 
+                           rsdeath_acu_jan_wm_q_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_jan_sp,localMI)
+              death_geo_acu_jan_sp$Z.cumulcount <- scale(death_geo_acu_jan_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jan_sp$Z.cumulcount - mean(death_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(death_geo_acu_apr_sp$death_cumul_count, 
+                           rsdeath_acu_apr_wm_q_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_apr_sp,localMI)
+              death_geo_acu_apr_sp$Z.cumulcount <- scale(death_geo_acu_apr_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_apr_sp$Z.cumulcount - mean(death_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(death_geo_acu_jul_sp$death_cumul_count, 
+                           rsdeath_acu_jul_wm_q_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_jul_sp,localMI)
+              death_geo_acu_jul_sp$Z.cumulcount <- scale(death_geo_acu_jul_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jul_sp$Z.cumulcount - mean(death_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(death_geo_acu_sep_sp$death_cumul_count, 
+                           rsdeath_acu_sep_wm_q_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_sep_sp,localMI)
+              death_geo_acu_sep_sp$Z.cumulcount <- scale(death_geo_acu_sep_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_sep_sp$Z.cumulcount - mean(death_geo_acu_sep_sp$Z.cumulcount)
+            }
+          }
+        }
+        if (input$corrinputmatrix == "fix"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jan_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jan_wm_fix_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jan_sp,localMI)
+              confirmed_geo_acu_jan_sp$Z.cumulcount <- scale(confirmed_geo_acu_jan_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jan_sp$Z.cumulcount - mean(confirmed_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_apr_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_apr_wm_fix_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_apr_sp,localMI)
+              confirmed_geo_acu_apr_sp$Z.cumulcount <- scale(confirmed_geo_acu_apr_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_apr_sp$Z.cumulcount - mean(confirmed_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jul_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jul_wm_fix_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jul_sp,localMI)
+              confirmed_geo_acu_jul_sp$Z.cumulcount <- scale(confirmed_geo_acu_jul_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jul_sp$Z.cumulcount - mean(confirmed_geo_acu_jul_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(confirmed_geo_acu_sep_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_sep_wm_fix_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_sep_sp,localMI)
+              confirmed_geo_acu_sep_sp$Z.cumulcount <- scale(confirmed_geo_acu_sep_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_sep_sp$Z.cumulcount - mean(confirmed_geo_acu_sep_sp$Z.cumulcount) 
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jan_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jan_wm_fix_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jan_sp,localMI)
+              recovered_geo_acu_jan_sp$Z.cumulcount <- scale(recovered_geo_acu_jan_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jan_sp$Z.cumulcount - mean(recovered_geo_acu_jan_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(recovered_geo_acu_apr_sp$recovered_cumul_count, 
+                           rsrecovered_acu_apr_wm_fix_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_apr_sp,localMI)
+              recovered_geo_acu_apr_sp$Z.cumulcount <- scale(recovered_geo_acu_apr_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_apr_sp$Z.cumulcount - mean(recovered_geo_acu_apr_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jul_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jul_wm_fix_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jul_sp,localMI)
+              recovered_geo_acu_jul_sp$Z.cumulcount <- scale(recovered_geo_acu_jul_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jul_sp$Z.cumulcount - mean(recovered_geo_acu_jul_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(recovered_geo_acu_sep_sp$recovered_cumul_count, 
+                           rsrecovered_acu_sep_wm_fix_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_sep_sp,localMI)
+              recovered_geo_acu_sep_sp$Z.cumulcount <- scale(recovered_geo_acu_sep_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_sep_sp$Z.cumulcount - mean(recovered_geo_acu_sep_sp$Z.cumulcount) 
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(death_geo_acu_jan_sp$death_cumul_count, 
+                           rsdeath_acu_jan_wm_fix_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_jan_sp,localMI)
+              death_geo_acu_jan_sp$Z.cumulcount <- scale(death_geo_acu_jan_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jan_sp$Z.cumulcount - mean(death_geo_acu_jan_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(death_geo_acu_apr_sp$death_cumul_count, 
+                           rsdeath_acu_apr_wm_fix_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_apr_sp,localMI)
+              death_geo_acu_apr_sp$Z.cumulcount <- scale(death_geo_acu_apr_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_apr_sp$Z.cumulcount - mean(death_geo_acu_apr_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(death_geo_acu_jul_sp$death_cumul_count, 
+                           rsdeath_acu_jul_wm_fix_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_jul_sp,localMI)
+              death_geo_acu_jul_sp$Z.cumulcount <- scale(death_geo_acu_jul_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jul_sp$Z.cumulcount - mean(death_geo_acu_jul_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(death_geo_acu_sep_sp$death_cumul_count, 
+                           rsdeath_acu_sep_wm_fix_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_sep_sp,localMI)
+              death_geo_acu_sep_sp$Z.cumulcount <- scale(death_geo_acu_sep_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_sep_sp$Z.cumulcount - mean(death_geo_acu_sep_sp$Z.cumulcount) 
+            }
+          }
+        }
+        
+        if (input$corrinputmatrix == "adap"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jan_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jan_wm_adap_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jan_sp,localMI)
+              confirmed_geo_acu_jan_sp$Z.cumulcount <- scale(confirmed_geo_acu_jan_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jan_sp$Z.cumulcount - mean(confirmed_geo_acu_jan_sp) 
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_apr_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_apr_wm_adap_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_apr_sp,localMI)
+              confirmed_geo_acu_apr_sp$Z.cumulcount <- scale(confirmed_geo_acu_apr_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_apr_sp$Z.cumulcount - mean(confirmed_geo_acu_apr_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jul_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jul_wm_adap_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jul_sp,localMI)
+              confirmed_geo_acu_jul_sp$Z.cumulcount <- scale(confirmed_geo_acu_jul_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jul_sp$Z.cumulcount - mean(confirmed_geo_acu_jul_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(confirmed_geo_acu_sep_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_sep_wm_adap_w)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_sep_sp,localMI)
+              confirmed_geo_acu_sep_sp$Z.cumulcount <- scale(confirmed_geo_acu_sep_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_sep_sp$Z.cumulcount - mean(confirmed_geo_acu_sep_sp$Z.cumulcount) 
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jan_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jan_wm_adap_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jan_sp,localMI)
+              recovered_geo_acu_jan_sp$Z.cumulcount <- scale(recovered_geo_acu_jan_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jan_sp$Z.cumulcount - mean(recovered_geo_acu_jan_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(recovered_geo_acu_apr_sp$recovered_cumul_count, 
+                           rsrecovered_acu_apr_wm_adap_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_apr_sp,localMI)
+              recovered_geo_acu_apr_sp$Z.cumulcount <- scale(recovered_geo_acu_apr_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_apr_sp$Z.cumulcount - mean(recovered_geo_acu_apr_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jul_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jul_wm_adap_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jul_sp,localMI)
+              recovered_geo_acu_jul_sp$Z.cumulcount <- scale(recovered_geo_acu_jul_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jul_sp$Z.cumulcount - mean(recovered_geo_acu_jul_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(recovered_geo_acu_sep_sp$recovered_cumul_count, 
+                           rsrecovered_acu_sep_wm_adap_w)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_sep_sp,localMI)
+              recovered_geo_acu_sep_sp$Z.cumulcount <- scale(recovered_geo_acu_sep_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_sep_sp$Z.cumulcount - mean(recovered_geo_acu_sep_sp$Z.cumulcount) 
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(death_geo_acu_jan_sp$death_cumul_count, 
+                           rsdeath_acu_jan_wm_adap_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_jan_sp,localMI)
+              death_geo_acu_jan_sp$Z.cumulcount <- scale(death_geo_acu_jan_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jan_sp$Z.cumulcount - mean(death_geo_acu_jan_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(death_geo_acu_apr_sp$death_cumul_count, 
+                           rsdeath_acu_apr_wm_adap_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_apr_sp,localMI)
+              death_geo_acu_apr_sp$Z.cumulcount <- scale(death_geo_acu_apr_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_apr_sp$Z.cumulcount - mean(death_geo_acu_apr_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(death_geo_acu_jul_sp$death_cumul_count, 
+                           rsdeath_acu_jul_wm_adap_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_jul_sp,localMI)
+              death_geo_acu_jul_sp$Z.cumulcount <- scale(death_geo_acu_jul_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jul_sp$Z.cumulcount - mean(death_geo_acu_jul_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(death_geo_acu_sep_sp$death_cumul_count, 
+                           rsdeath_acu_sep_wm_adap_w)
+              localMI_bind <- 
+                cbind(death_geo_acu_sep_sp,localMI)
+              death_geo_acu_sep_sp$Z.cumulcount <- scale(death_geo_acu_sep_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_sep_sp$Z.cumulcount - mean(death_geo_acu_sep_sp$Z.cumulcount) 
+            }
+          }
+        }
+      }
+      else if (input$corrinputtype == "b"){
+        if (input$corrinputmatrix == "r"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jan_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jan_wm_r_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jan_sp,localMI)
+              confirmed_geo_acu_jan_sp$Z.cumulcount <- scale(confirmed_geo_acu_jan_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jan_sp$Z.cumulcount - mean(confirmed_geo_acu_jan_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_apr_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_apr_wm_r_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_apr_sp,localMI)
+              confirmed_geo_acu_apr_sp$Z.cumulcount <- scale(confirmed_geo_acu_apr_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_apr_sp$Z.cumulcount - mean(confirmed_geo_acu_apr_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jul_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jul_wm_r_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jul_sp,localMI)
+              confirmed_geo_acu_jul_sp$Z.cumulcount <- scale(confirmed_geo_acu_jul_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jul_sp$Z.cumulcount - mean(confirmed_geo_acu_jul_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(confirmed_geo_acu_sep_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_sep_wm_r_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_sep_sp,localMI)
+              confirmed_geo_acu_sep_sp$Z.cumulcount <- scale(confirmed_geo_acu_sep_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_sep_sp$Z.cumulcount - mean(confirmed_geo_acu_sep_sp$Z.cumulcount) 
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jan_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jan_wm_r_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jan_sp,localMI)
+              recovered_geo_acu_jan_sp$Z.cumulcount <- scale(recovered_geo_acu_jan_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jan_sp$Z.cumulcount - mean(recovered_geo_acu_jan_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(recovered_geo_acu_apr_sp$recovered_cumul_count, 
+                           rsrecovered_acu_apr_wm_r_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_apr_sp,localMI)
+              recovered_geo_acu_apr_sp$Z.cumulcount <- scale(recovered_geo_acu_apr_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_apr_sp$Z.cumulcount - mean(recovered_geo_acu_apr_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jul_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jul_wm_r_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jul_sp,localMI)
+              recovered_geo_acu_jul_sp$Z.cumulcount <- scale(recovered_geo_acu_jul_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jul_sp$Z.cumulcount - mean(recovered_geo_acu_jul_sp$Z.cumulcount) 
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(recovered_geo_acu_sep_sp$recovered_cumul_count, 
+                           rsrecovered_acu_sep_wm_r_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_sep_sp,localMI)
+              recovered_geo_acu_sep_sp$Z.cumulcount <- scale(recovered_geo_acu_sep_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_sep_sp$Z.cumulcount - mean(recovered_geo_acu_sep_sp) 
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(death_geo_acu_jan_sp$death_cumul_count, 
+                           rsdeath_acu_jan_wm_r_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_jan_sp,localMI)
+              death_geo_acu_jan_sp$Z.cumulcount <- scale(death_geo_acu_jan_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jan_sp$Z.cumulcount - mean(death_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(death_geo_acu_apr_sp$death_cumul_count, 
+                           rsdeath_acu_apr_wm_r_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_apr_sp,localMI)
+              death_geo_acu_apr_sp$Z.cumulcount <- scale(death_geo_acu_apr_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_apr_sp$Z.cumulcount - mean(death_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(death_geo_acu_jul_sp$death_cumul_count, 
+                           rsdeath_acu_jul_wm_r_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_jul_sp,localMI)
+              death_geo_acu_jul_sp$Z.cumulcount <- scale(death_geo_acu_jul_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jul_sp$Z.cumulcount - mean(death_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(death_geo_acu_sep_sp$death_cumul_count, 
+                           rsdeath_acu_sep_wm_r_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_sep_sp,localMI)
+              death_geo_acu_sep_sp$Z.cumulcount <- scale(death_geo_acu_sep_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_sep_sp$Z.cumulcount - mean(death_geo_acu_sep_sp$Z.cumulcount)
+            }
+          }
+        }
+        
+        
+        if (input$corrinputmatrix == "q"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jan_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jan_wm_q_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jan_sp,localMI)
+              confirmed_geo_acu_jan_sp$Z.cumulcount <- scale(confirmed_geo_acu_jan_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jan_sp$Z.cumulcount - mean(confirmed_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_apr_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_apr_wm_q_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_apr_sp,localMI)
+              confirmed_geo_acu_apr_sp$Z.cumulcount <- scale(confirmed_geo_acu_apr_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_apr_sp$Z.cumulcount - mean(confirmed_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jul_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jul_wm_q_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jul_sp,localMI)
+              confirmed_geo_acu_jul_sp$Z.cumulcount <- scale(confirmed_geo_acu_jul_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jul_sp$Z.cumulcount - mean(confirmed_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(confirmed_geo_acu_sep_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_sep_wm_q_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_sep_sp,localMI)
+              confirmed_geo_acu_sep_sp$Z.cumulcount <- scale(confirmed_geo_acu_sep_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_sep_sp$Z.cumulcount - mean(confirmed_geo_acu_sep_sp$Z.cumulcount)
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jan_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jan_wm_q_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jan_sp,localMI)
+              recovered_geo_acu_jan_sp$Z.cumulcount <- scale(recovered_geo_acu_jan_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jan_sp$Z.cumulcount - mean(recovered_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              recovered_geo_acu_apr_sp <- recovered_geo_acu_apr_sp 
+              localMI <- 
+                localmoran(recovered_geo_acu_apr_sp$recovered_cumul_count, 
+                           rsrecovered_acu_apr_wm_q_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_apr_sp,localMI)
+              recovered_geo_acu_apr_sp$Z.cumulcount <- scale(recovered_geo_acu_apr_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_apr_sp$Z.cumulcount - mean(recovered_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jul_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jul_wm_q_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jul_sp,localMI)
+              recovered_geo_acu_jul_sp$Z.cumulcount <- scale(recovered_geo_acu_jul_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jul_sp$Z.cumulcount - mean(recovered_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(recovered_geo_acu_sep_sp$recovered_cumul_count, 
+                           rsrecovered_acu_sep_wm_q_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_sep_sp,localMI)
+              recovered_geo_acu_sep_sp$Z.cumulcount <- scale(recovered_geo_acu_sep_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_sep_sp$Z.cumulcount - mean(recovered_geo_acu_sep_sp$Z.cumulcount)
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(death_geo_acu_jan_sp$death_cumul_count, 
+                           rsdeath_acu_jan_wm_q_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_jan_sp,localMI)
+              death_geo_acu_jan_sp$Z.cumulcount <- scale(death_geo_acu_jan_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jan_sp$Z.cumulcount - mean(death_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(death_geo_acu_apr_sp$death_cumul_count, 
+                           rsdeath_acu_apr_wm_q_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_apr_sp,localMI)
+              death_geo_acu_apr_sp$Z.cumulcount <- scale(death_geo_acu_apr_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_apr_sp$Z.cumulcount - mean(death_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(death_geo_acu_jul_sp$death_cumul_count, 
+                           rsdeath_acu_jul_wm_q_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_jul_sp,localMI)
+              death_geo_acu_jul_sp$Z.cumulcount <- scale(death_geo_acu_jul_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jul_sp$Z.cumulcount - mean(death_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(death_geo_acu_sep_sp$death_cumul_count, 
+                           rsdeath_acu_sep_wm_q_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_sep_sp,localMI)
+              death_geo_acu_sep_sp$Z.cumulcount <- scale(death_geo_acu_sep_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_sep_sp$Z.cumulcount - mean(death_geo_acu_sep_sp$Z.cumulcount)
+            }
+          }
+        }
+        if (input$corrinputmatrix == "fix"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jan_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jan_wm_fix_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jan_sp,localMI)
+              confirmed_geo_acu_jan_sp$Z.cumulcount <- scale(confirmed_geo_acu_jan_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jan_sp$Z.cumulcount - mean(confirmed_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_apr_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_apr_wm_fix_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_apr_sp,localMI)
+              confirmed_geo_acu_apr_sp$Z.cumulcount <- scale(confirmed_geo_acu_apr_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_apr_sp$Z.cumulcount - mean(confirmed_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jul_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jul_wm_fix_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jul_sp,localMI)
+              confirmed_geo_acu_jul_sp$Z.cumulcount <- scale(confirmed_geo_acu_jul_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jul_sp$Z.cumulcount - mean(confirmed_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(confirmed_geo_acu_sep_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_sep_wm_fix_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_sep_sp,localMI)
+              confirmed_geo_acu_sep_sp$Z.cumulcount <- scale(confirmed_geo_acu_sep_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_sep_sp$Z.cumulcount - mean(confirmed_geo_acu_sep_sp$Z.cumulcount)
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jan_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jan_wm_fix_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jan_sp,localMI)
+              recovered_geo_acu_jan_sp$Z.cumulcount <- scale(recovered_geo_acu_jan_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jan_sp$Z.cumulcount - mean(recovered_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(recovered_geo_acu_apr_sp$recovered_cumul_count, 
+                           rsrecovered_acu_apr_wm_fix_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_apr_sp,localMI)
+              recovered_geo_acu_apr_sp$Z.cumulcount <- scale(recovered_geo_acu_apr_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_apr_sp$Z.cumulcount - mean(recovered_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jul_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jul_wm_fix_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jul_sp,localMI)
+              recovered_geo_acu_jul_sp$Z.cumulcount <- scale(recovered_geo_acu_jul_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jul_sp$Z.cumulcount - mean(recovered_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(recovered_geo_acu_sep_sp$recovered_cumul_count, 
+                           rsrecovered_acu_sep_wm_fix_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_sep_sp,localMI)
+              recovered_geo_acu_sep_sp$Z.cumulcount <- scale(recovered_geo_acu_sep_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_sep_sp$Z.cumulcount - mean(recovered_geo_acu_sep_sp$Z.cumulcount)
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(death_geo_acu_jan_sp$death_cumul_count, 
+                           rsdeath_acu_jan_wm_fix_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_jan_sp,localMI)
+              death_geo_acu_jan_sp$Z.cumulcount <- scale(death_geo_acu_jan_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jan_sp$Z.cumulcount - mean(death_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(death_geo_acu_apr_sp$death_cumul_count, 
+                           rsdeath_acu_apr_wm_fix_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_apr_sp,localMI)
+              death_geo_acu_apr_sp$Z.cumulcount <- scale(death_geo_acu_apr_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_apr_sp$Z.cumulcount - mean(death_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(death_geo_acu_jul_sp$death_cumul_count, 
+                           rsdeath_acu_jul_wm_fix_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_jul_sp,localMI)
+              death_geo_acu_jul_sp$Z.cumulcount <- scale(death_geo_acu_jul_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jul_sp$Z.cumulcount - mean(death_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(death_geo_acu_sep_sp$death_cumul_count, 
+                           rsdeath_acu_sep_wm_fix_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_sep_sp,localMI)
+              death_geo_acu_sep_sp$Z.cumulcount <- scale(death_geo_acu_sep_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_sep_sp$Z.cumulcount - mean(df$Z.cumulcount)
+            }
+          }
+        }
+        
+        if (input$corrinputmatrix == "adap"){
+          if (input$corrinputcase == "confirmed"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jan_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jan_wm_adap_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jan_sp,localMI)
+              confirmed_geo_acu_jan_sp$Z.cumulcount <- scale(confirmed_geo_acu_jan_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jan_sp$Z.cumulcount - mean(confirmed_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_apr_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_apr_wm_adap_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_apr_sp,localMI)
+              confirmed_geo_acu_apr_sp$Z.cumulcount <- scale(confirmed_geo_acu_apr_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_apr_sp$Z.cumulcount - mean(confirmed_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(confirmed_geo_acu_jul_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_jul_wm_adap_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_jul_sp,localMI)
+              confirmed_geo_acu_jul_sp$Z.cumulcount <- scale(confirmed_geo_acu_jul_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_jul_sp$Z.cumulcount - mean(confirmed_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(confirmed_geo_acu_sep_sp$confirmed_cumul_count, 
+                           rsconfirmed_acu_sep_wm_adap_b)
+              localMI_bind <- 
+                cbind(confirmed_geo_acu_sep_sp,localMI)
+              confirmed_geo_acu_sep_sp$Z.cumulcount <- scale(confirmed_geo_acu_sep_sp$confirmed_cumul_count) %>% as.vector()
+              DV <- confirmed_geo_acu_sep_sp$Z.cumulcount - mean(confirmed_geo_acu_sep_sp$Z.cumulcount)
+            }
+          }
+          if (input$corrinputcase == "recovered"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jan_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jan_wm_adap_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jan_sp,localMI)
+              recovered_geo_acu_jan_sp$Z.cumulcount <- scale(recovered_geo_acu_jan_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jan_sp$Z.cumulcount - mean(recovered_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(recovered_geo_acu_apr_sp$recovered_cumul_count, 
+                           rsrecovered_acu_apr_wm_adap_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_apr_sp,localMI)
+              recovered_geo_acu_apr_sp$Z.cumulcount <- scale(recovered_geo_acu_apr_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_apr_sp$Z.cumulcount - mean(recovered_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(recovered_geo_acu_jul_sp$recovered_cumul_count, 
+                           rsrecovered_acu_jul_wm_adap_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_jul_sp,localMI)
+              recovered_geo_acu_jul_sp$Z.cumulcount <- scale(recovered_geo_acu_jul_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_jul_sp$Z.cumulcount - mean(recovered_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(recovered_geo_acu_sep_sp$recovered_cumul_count, 
+                           rsrecovered_acu_sep_wm_adap_b)
+              localMI_bind <- 
+                cbind(recovered_geo_acu_sep_sp,localMI)
+              recovered_geo_acu_sep_sp$Z.cumulcount <- scale(recovered_geo_acu_sep_sp$recovered_cumul_count) %>% as.vector()
+              DV <- recovered_geo_acu_sep_sp$Z.cumulcount - mean(recovered_geo_acu_sep_sp$Z.cumulcount)
+            }
+          }
+          
+          if (input$corrinputcase == "death"){
+            if (input$corrmonthInput == "jan"){
+              localMI <- 
+                localmoran(death_geo_acu_jan_sp$death_cumul_count, 
+                           rsdeath_acu_jan_wm_adap_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_jan_sp,localMI)
+              death_geo_acu_jan_sp$Z.cumulcount <- scale(death_geo_acu_jan_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jan_sp$Z.cumulcount - mean(death_geo_acu_jan_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "apr"){
+              localMI <- 
+                localmoran(death_geo_acu_apr_sp$death_cumul_count, 
+                           rsdeath_acu_apr_wm_adap_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_apr_sp,localMI)
+              death_geo_acu_apr_sp$Z.cumulcount <- scale(death_geo_acu_apr_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_apr_sp$Z.cumulcount - mean(death_geo_acu_apr_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "jul"){
+              localMI <- 
+                localmoran(death_geo_acu_jul_sp$death_cumul_count, 
+                           rsdeath_acu_jul_wm_adap_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_jul_sp,localMI)
+              death_geo_acu_jul_sp$Z.cumulcount <- scale(death_geo_acu_jul_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_jul_sp$Z.cumulcount - mean(death_geo_acu_jul_sp$Z.cumulcount)
+            }
+            if (input$corrmonthInput == "sep") {
+              localMI <- 
+                localmoran(death_geo_acu_sep_sp$death_cumul_count, 
+                           rsdeath_acu_sep_wm_adap_b)
+              localMI_bind <- 
+                cbind(death_geo_acu_sep_sp,localMI)
+              death_geo_acu_sep_sp$Z.cumulcount <- scale(death_geo_acu_sep_sp$death_cumul_count) %>% as.vector()
+              DV <- death_geo_acu_sep_sp$Z.cumulcount - mean(death_geo_acu_sep_sp$Z.cumulcount)
+            }
+          }
+        }
+      }
+      c_quadrant<-vector(mode="numeric",length=nrow(localMI))  
+      C_mI <- localMI[,1] - mean(localMI[,1])    
+      signif <- 0.05       
+      c_quadrant[DV >0 & C_mI>0] <- 4      
+      c_quadrant[DV <0 & C_mI<0] <- 1      
+      c_quadrant[DV <0 & C_mI>0] <- 2
+      c_quadrant[DV >0 & C_mI<0] <- 3
+      c_quadrant[localMI[,5]>signif] <- 0
+      localMI_bind$c_quadrant <- c_quadrant
+      
+      colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+      clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+      
+      tm_shape(localMI_bind) +
+        tm_fill(col = "c_quadrant", style = "cat", palette = colors[c(sort(unique(c_quadrant)))+1], labels = clusters[c(sort(unique(c_quadrant)))+1], popup.vars = c("City_EN")) +
+        tm_view(set.zoom.limits = c(11,17)) +
+        tm_borders(alpha=0.5)
+
+    })
+    })
+
+    
+    #observe ({ output$lisa <- renderPlot({
+    #  colors <- c("#ffffff", "#2c7bb6", "#abd9e9", "#fdae61", "#d7191c")
+    #  clusters <- c("insignificant", "low-low", "low-high", "high-low", "high-high")
+    #  
+    #  tm_shape(lisa_filter()) +
+    #    tm_fill(col = "c_quadrant", style = "cat", palette = colors[c(sort(unique(c_quadrant)))+1], labels = clusters[c(sort(unique(c_quadrant)))+1], popup.vars = c("City_EN")) +
+    #    tm_view(set.zoom.limits = c(11,17)) +
+    #    tm_borders(alpha=0.5)
+    #})})
     
     observe ({ output$localmoran <- renderPlot({
         
@@ -683,72 +2459,78 @@ server <- function(input, output, session) {
     })})
 
     
-    observe ({ output$choropleth <- renderLeaflet({
-        #tmap_mode("plot")
+    observe ({ output$choropleth <- renderPlot({
+        tmap_mode("plot")
         #tm_basemap(leaflet::providers$CartoDB.Positron)+
         
         #tm_basemap(leaflet::providers$CartoDB.Positron)+
-        #tm_shape(choro_filter(), bbox = st_bbox(choro_filter())) +
-         #   tm_fill(eval(paste(input$inputcase, "_new_count", sep = "")),
-         #           style = "jenks",
-         #           n = 6,
-         #           palette = "Blues" ) +
-         #   tm_layout(main.title = paste("Distribution of ", input$inputcase, "cases"),
-         #             main.title.position = "center",
-         #             main.title.size = 1,
-         #             legend.width = 0.35,
-         #             legend.outside = FALSE,
-         #             legend.position = c("right", "bottom"),
-        #              frame = TRUE) +
-           # tm_borders(alpha = 0.2)
+        tm_shape(choro_filter(), bbox = st_bbox(choro_filter())) +
+            tm_fill(eval(paste(input$inputcase, "_new_count", sep = "")),
+                    style = "fixed",
+                    breaks = c(0,100,300,700,1500,3000, 7000,Inf),
+                    palette = "Blues" ) +
+            tm_layout(main.title = paste("Distribution of ", input$inputcase, "cases"),
+                      main.title.position = "center",
+                      main.title.size = 1,
+                      legend.width = 0.35,
+                      legend.outside = FALSE,
+                      legend.position = c("right", "bottom"),
+                      frame = TRUE) +
+            tm_borders(alpha = 0.2)
         
+        
+        
+        
+        #bins <- c(0,100,300,700,1500,3000, 7000,Inf)
+        #pal <- colorBin("Reds", domain = as.numeric(unlist(choro_filter()[,eval(paste(input$inputcase, "_new_count", sep = ""))])), bins = bins)
 
-        var <- choro_filter()
-        
-        
-        
-        bins <- c(0,100,300,700,1500,3000, 7000,Inf)
-        pal <- colorBin("Reds", domain = as.numeric(unlist(choro_filter()[,eval(paste(input$inputcase, "_new_count", sep = ""))])), bins = bins)
-        
-        leaflet(choro_filter()) %>%
-            addProviderTiles(providers$CartoDB.Positron)%>%
-            addPolygons(
-                weight = 1, 
-                opacity = 1.0, 
-                smoothFactor = 0.5,
-                fillOpacity = 0.5,
-                color = ~pal(as.name(eval(paste(input$inputcase, "_new_count", sep = "")))),
-                highlightOptions = highlightOptions(color = "white", 
-                                                    weight = 2, 
-                                                    bringToFront = TRUE),
-                popup = paste("<b>Name:</b> ", 
-                              choro_filter()[,1], "<br>",
-                              "<b>Number of Cases:</b> ", 
-                              as.numeric(unlist(choro_filter()[,eval(paste(input$inputcase, "_new_count", sep = ""))])))) %>%
-            addLegend(pal = pal, values = ~as.name(eval(paste(input$inputcase, "_new_count", sep = ""))), opacity = .5, title = "Distibution of cases")
+        #leaflet(choro_filter()) %>%
+         #   addProviderTiles(providers$CartoDB.Positron)%>%
+         #  addPolygons(
+         #       weight = 1,
+         #       opacity = 1.0,
+         #       smoothFactor = 0.5,
+         #       fillOpacity = 0.5,
+         #       color = ~pal(as.name(eval(paste(input$inputcase, "_new_count", sep = "")))),
+         #       highlightOptions = highlightOptions(color = "white", 
+         #                                           weight = 2, 
+         ###                                           bringToFront = TRUE),
+            #    popup = paste("<b>Name:</b> ", 
+            #                  choro_filter()[,1], "<br>",
+            #                  "<b>Number of Cases:</b> ", 
+            #                  as.numeric(unlist(choro_filter()[,eval(paste(input$inputcase, "_new_count", sep = ""))])))) %>%
+            #addLegend(pal = pal, values = ~as.name(eval(paste(input$inputcase, "_new_count", sep = ""))), opacity = .5, title = "Distibution of cases")
     })
     })
     
     observe ({ output$boxmap <- renderPlot({
+        #choro_filter()[is.na(choro_filter())] <- 0
         tmap_mode("plot")
         
-        choro_filter[is.na(choro_filter)] <- 0
-        
-        boxmap(choro_filter$eval(paste("Covid'19",input$inputcase, "rate (Per 10,000)", sep = " ")),
-               choro_filter(), 
-               paste("Covid'19",input$inputcase, "rate (Per 10,000)", sep = " "))
+       
+        boxmap(paste("Covid'19 ",as.character(input$inputcase), " rate (Per 10,000)", sep = ""),
+               choro_filter())
     })
     })
 
     output$newPlot <- renderPlot({
         
+        name <- as.character(paste(input$inputcase, "_new", sep = ""))
+        
         ggplot(data = plot_filter(), aes( x=`month`, y=eval(as.name(paste(input$inputcase, "_new", sep = ""))),group = 1 )) +
+            geom_point()+
             geom_line(aes(y=eval(as.name(paste(input$inputcase, "_new", sep = "")))), color="darkred") +
             scale_x_discrete(breaks = c(seq(from = 1, to = 9, by = 1)),
                                labels = c(seq(from = 1, to = 9, by = 1) ))+
+            ggrepel::geom_text_repel(aes(label = eval(as.name(paste(input$inputcase, "_new", sep = "")))))+
             xlab("Months") +
             ylab("Number of cases")+
-            ggtitle("New Cases")
+            ggtitle("Number of New Cases by Month")+
+            theme_hc() +
+            theme(plot.title = element_text(lineheight=.8, face="bold",size = 20))+
+            scale_colour_hc()
+        
+        
         
     })
     
@@ -756,12 +2538,16 @@ server <- function(input, output, session) {
 
 
         ggplot(data = plot_filter(), aes( x=`month`, y=eval(as.name(paste(input$inputcase, "_cumul", sep = ""))),group = 1 )) +
+            geom_point()+
             geom_line(linetype="twodash") +
             scale_x_discrete(breaks = c(seq(from = 1, to = 9, by = 1)),
                              labels = c(seq(from = 1, to = 9, by = 1) ))+
+            ggrepel::geom_text_repel(aes(label = eval(as.name(paste(input$inputcase, "_cumul", sep = "")))))+
             xlab("Months") +
             ylab("Number of cases")+
-            ggtitle("Cumulative Cases")
+            ggtitle("Number of Cumulative Cases by Month")+
+            theme(plot.title = element_text(lineheight=.8, face="bold", size = 20))+
+            theme_hc() + scale_colour_hc()
     })
     
 }
