@@ -251,6 +251,8 @@ Figure -: Box Map of Confirmed Cases
 ### Recovered Cases
 
 
+While there are high number of cases in the month of February and March, the sharp drop in cases after in April implies that China has managed to cope with the surge in cases. 
+
 <!-- While there is a high volume of new COVID-19 cases happening, there are also a great deal of a number of successful cases recovered between January and March which allows rooms for preparation. And if based on the cumulative cases by month, the total number of death toll when falls on march, which has already hit a record high of 75189 cases.  -->
 
 ![Line Graph of Recovered Cases](figures/EDA/recovered_linegraph.jpg)\
