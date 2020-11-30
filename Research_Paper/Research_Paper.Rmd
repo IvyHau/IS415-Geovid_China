@@ -222,16 +222,25 @@ Figure -: Spatial Autocorrelation User Input
 
 ### Confirmed Cases
 
+The Line Graph of Confirmed Cases below visualized the New cases and Cumulative cases of COVID-19 occurred in the respective x-Axis over the timeline of months between January to September 2020 in y-Axis, which based on the observation figure [] below, the initial count of the new daily cases started off with 11455 in January and had a steep increase to 66946 cases in February, and in the month of March onwards, there has been a drop and remained steadily since then. While for cumulative cases, upon reaching 78401 cumulative cases in February, the incoming new daily cases have been greatly reduced. 
 
 ![Line Graph of Confirmed Cases](figures/EDA/confirmed_linegraph.png)\
 \begin{center}
 Figure -: Line Graph of Confirmed Cases
 \end{center}
 
+Moving on, based on the choropleth mapping figure [] below, represents the defined aggregation of density in the confirmed cases of each individual city, differentiating by the months of January, April, July and September. The cluster started off from the china city of Wuhan and it spread to the neighbouring cities overtime. 
+
 ![Choropleth of Confirmed Cases](figures/EDA/confirmed_choropleth.png)\
 \begin{center}
 Figure -: Choropleth of Confirmed Cases
 \end{center}
+
+After looking at the results of the choropleth mapping above, let us take a look at the box map of confirmed cases and analyze its outliers. Box map of confirmed cases generally shows the changes across the months, by filtrating its data into the relevant interquartile range. 
+<!-- The box map of confirmed cases shows the changes in the rate of COVID-19 recovered cases across the four different months in China, using the calculations from interquartile range, categorizing areas into each range.  -->
+
+As shown in figure [] below, box map in the month of January shows the least number of areas lying in the upper outlier range. The number of areas in the upper outlier range increase as the months go by, with the most areas in the month of September. The increase in the areas of the upper outlier region suggests that it sees an increase in areas that may rise in the confirmed number of COVID-19 cases in China.
+
 
 ![Box Map of Confirmed Cases](figures/EDA/confirmed_boxmap.png)\
 \begin{center}
@@ -241,18 +250,52 @@ Figure -: Box Map of Confirmed Cases
 
 ### Recovered Cases
 
+
+<!-- While there is a high volume of new COVID-19 cases happening, there are also a great deal of a number of successful cases recovered between January and March which allows rooms for preparation. And if based on the cumulative cases by month, the total number of death toll when falls on march, which has already hit a record high of 75189 cases.  -->
+
+![Line Graph of Recovered Cases](figures/EDA/recovered_linegraph.jpg)\
+\begin{center}
+Figure -: Line Graph of Recovered Cases
+\end{center}
+
+The choropleth mapping below shows the distribution of recovered cases in China. Based on Figure [], it can be seen that there is an increase in the number of recovered cases throughout China from January to September.  Although there is a clear increase in the number of recovered cases in Wuhan and its surrounding areas, there are also other areas in China that has also seen this increase, which would probably be due to the increase in the number of confirmed cases in those respective areas.
+
+![Choropleth of Recovered Cases](figures/EDA/recovered_choropleth.jpg)\
+\begin{center}
+Figure -: Choropleth of Recovered Cases
+\end{center}
+
+Moving forward on to the box map for recovered cases, it shows the rate of COVID-19 cases across 4 different months in China. 
+
+As observed from Figure [] below, the map shows high rates of recoveries at cities such as Wuhan, which lies in the upper outlier range. The number of areas that lies in the upper outlier range increases over the progression of time. While this implies that this area sees a higher number of recovery rates, it does not mean that this is due to a better health care or related factors that lead to the increase in rate of recovery, it simply means there are higher rates of recovery cases. It is important to consider the number of confirmed cases in these areas. Areas with high rate of recovered cases lying on the upper outlier usually have high rates of confirmed cases, which is the more probable explanation behind the high rate of recovery. 
+
+In addition, the box map of January is the exception amongst the others, showing the entire China as upper outlier, this is due to the insufficient observations to determine the interquartile range. 
+
+![Box Map of Recovered Cases](figures/EDA/recovered_boxmap.jpg)\
+\begin{center}
+Figure -: Box Map of Recovered Cases
+\end{center}
+
+
 ### Death Cases
 
+
+Based on Figure [] below, it can be seen that it started off with 253 death cases in January, and followed by a spike of 2526 new death cases in February. 
+<!-- As per monthly basis in the Line Graph of new cases, there are 253 death cases occurred during the month January, following by February which brought up to another 2526 new cases, and in the March and April as well which hit an accumulative of 4572 new cases over the Total confirmed cumulative numbers of 81111.  -->
 
 ![Line Graph of Death Cases](figures/EDA/death_linegraph.png)\
 \begin{center}
 Figure -: Line Graph of Death Cases
 \end{center}
 
+The choropleth for death cases shows the distribution of death cases throughout China, which shows that the distribution of death cases to be concentrated at the Wuhan area. Throughout January, April, Jul & September, September sees the highest number of death cases concentrated in the Wuhan area, with a slight increase in cases in the surrounding areas. This is due to high number of confirmed cases in those regions. It is also important to note that Wuhan is the centre of the epidemic, which would explain why there is a higher number of Covid-19 deaths in that region, as it is still struggling to contain the newly discovered virus.
+
 ![Choropleth of Death Cases](figures/EDA/death_choropleth.png)\
 \begin{center}
 Figure -: Choropleth of Death Cases
 \end{center}
+
+The box map for the rate of death cases shows that all areas lies in the upper outlier. This is due to the insufficient number of death cases available. As such, it is important to do further spatial autocorrelation to analyse the presence of spatial patterns and clusters. 
 
 ![Box Map of Death Cases](figures/EDA/death_boxmap.png)\
 \begin{center}
@@ -263,14 +306,56 @@ Figure -: Box Map of Death Cases
 ### Conclusion
 
 
+## Spatial Autocorrelation Analysis 
+
+To determine if clusters observed in the earlier choropleth is significant, local Moran I is used to compute the relationship between each region to its neighbour. The figure [] below shows the Local Moran's I of each respective type of cases based on the adaptive weight matrix. 
+
+As observed from Figure [] below, Wuhan sees a significantly positive Local Moran's I statistic of confirmed cases rate. This also suggest that Wuhan is a spatial cluster that is significant, which means that its neighbours has a higher chance of being affected by the increase number of COVID-19 cases in Wuhan.
+
+On the other hand, the areas that shows a negative Local Moran's I statistic implies that there is no relationship between itself and its neighbour, suggesting that COVID-19 cases in those areas do not affect its neighbours. 
+
+![Local Moran's I for Confirmed Cases](figures/correlation/local_moran_i_confirmed-adaptive.jpg)\
+\begin{center}
+Figure -: Local Moran's I for Confirmed Cases
+\end{center}
+
+Moving forward, the figure [] below shows the recovered cases in Wuhan having a positive local Moran I statistics, which imply that there is enough evidence to conclude that Wuhan is a spatial cluster. This also suggest that recovered COVID-19 cases in Wuhan highly affects the number of recovered cases in its neighbouring areas.
+
+On the contrary, the negative local Moran's I statistics suggest that the recovered rate in these areas are not highly affect its neighbour.
+
+![Local Moran's I for Recovered Cases](figures/correlation/local_moran_i_recovered-adaptive.jpg)\
+\begin{center}
+Figure -: Local Moran's I for Confirmed Cases
+\end{center}
+
+As observed from Figure [], the death rate in Wuhan shows a significant evidence of spatial cluster, suggesting that its death rate will greatly affect its neighbouring areas. The negative Local Moran's I areas implies that the death rate in the area will not greatly affect the death rate in its neighbouring areas. 
+
+![Local Moran's I for Death Cases](figures/correlation/local_moran_i_death-adaptive.jpg)\
+\begin{center}
+Figure -: Local Moran's I for Confirmed Cases
+\end{center}
+
+
+
 # Limitations
+
+
+## Incomplete data 
+
+The incomplete data in the datasets, namely, confirmed, recovered, and death, resulted in limited analysis. This is especially so for the death data, with several cities with no information recorded. This resulted in missing areas, which is apparent in the death choropleth, showing gaps in the map. 
+
+## Computational Issues 
+
+Although RStudio has multiple packages that was crucial in the analysis of this study, there were several computational limitations, namely, memory allocation issues. RStudio consumes large amounts of memory processes, resulting in the failure to run the relevant programs and data analysis for the analysis.  
 
 
 # Discussion
 
+Based on the various analysis that was done, a clear spatial cluster for confirmed, recovered and death cases can be clearly seen in Wuhan. This is due to Wuhan being the ground zero for COVID-19. However, despite being a highly infectious virus, the reason for the small cluster was due to the lockdown in Wuhan, which prevented further spread of the disease to its neighbouring areas.  
 
 # Future Work
 
+Despite the study being done on a smaller scale, a more in-depth analysis with more data would on a bigger scale allow forecasting on the potential areas that would be affected by the spread of Covid-19 cases. 
 
 # Acknowledgement
 
