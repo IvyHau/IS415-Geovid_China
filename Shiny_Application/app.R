@@ -35,8 +35,9 @@ city_recover[is.na(city_recover)] <- 0
 
 # EPSG:3415
 china_city <- china_city %>%
-  dplyr::rename(`pop2010` = A101004_10) %>%
-  st_transform(crs = 3415)
+  dplyr::rename(`pop2010` = A101004_10)
+
+china_3415 <- st_transform(china_city,crs = 3415)
 
 # Confirmed Cases in each City
 
