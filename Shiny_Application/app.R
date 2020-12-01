@@ -6,8 +6,6 @@
 #
 #    http://shiny.rstudio.com/
 
-#
-library(leaflet)
 library(shiny)
 library(shinydashboard)
 library(shinyWidgets)
@@ -37,10 +35,10 @@ city_death[is.na(city_death)] <- 0
 city_recover[is.na(city_recover)] <- 0
 
 
-# EPSG:3415
-china_city <- china_city %>%
-    dplyr::rename(`pop2010` = A101004_10)
-china_3415 <- st_set_crs(china_city, 3415)
+# EPSG:4480
+china_city_4480 <- china_city %>%
+    dplyr::rename(`pop2010` = A101004_10) %>%
+    st_transform(china_city, crs = 4480)
 
 # Confirmed Cases in each City
 
@@ -78,7 +76,7 @@ confirmed_final <- left_join(confirmed_new_wtol, confirmed_cumul_wtol, by = ("id
                   `month` = month.y) %>%
     dplyr::select("id", "City_EN", "Prov_EN", "month", "confirmed_new_count", "confirmed_cumul_count")
 ## mapped to crs
-confirmed_geo <- left_join(confirmed_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
+confirmed_geo <- left_join(confirmed_final, china_4480, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
 ## Compute Covid'19 Rate per Municipal
 confirmed_geo <- confirmed_geo %>%
     mutate(`Covid'19 confirmed rate (Per 10,000)` = confirmed_cumul_count / (as.numeric(pop2010)/10000))
@@ -125,7 +123,7 @@ recovered_final <-
                   `month` = month.y) %>%
     dplyr::select("id", "City_EN", "Prov_EN", "month", "recovered_new_count", "recovered_cumul_count")
 ## mapped to crs
-recovered_geo <- left_join(recovered_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
+recovered_geo <- left_join(recovered_final, china_4480, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
 ## Calculate Covid '19 death rate 10,000 
 recovered_geo <- recovered_geo %>%
     dplyr::mutate("Covid'19 recovered rate (Per 10,000)" = (as.numeric(`recovered_cumul_count`)/(as.numeric(`pop2010`)/10000)))
@@ -169,7 +167,7 @@ death_final <- left_join(death_new_wtol, death_cumul_wtol, by = ("id" = "id")) %
     dplyr::select("id", "City_EN", "Prov_EN", "month", "death_new_count", "death_cumul_count")
 ## death_final[is.na(death_final)] <- 0
 ## mapped to crs
-death_geo <- left_join(death_final, china_3415, by = c("City_EN" = "City_EN",  'Prov_EN' = 'Prov_EN'))
+death_geo <- left_join(death_final, china_4480, by = c("City_EN" = "City_EN",  'Prov_EN' = 'Prov_EN'))
 ## Calculate Covid '19 death rate 10,000 
 death_geo <- death_geo %>%
     dplyr::mutate("Covid'19 death rate (Per 10,000)" = (as.numeric(`death_cumul_count`)/(as.numeric(`pop2010`)/10000)))
@@ -213,7 +211,7 @@ total_geo_sf <- left_join(total_geo_sf, as.data.frame(death_geo_sf),
 
 total_geo_sf <- total_geo_sf[, c(1:6,9:15, 7:8 )]
 
-total_geo_sf <- st_set_crs(total_geo_sf,3415)
+total_geo_sf <- st_set_crs(total_geo_sf,4480)
 
 # Create Boxmap
 
@@ -459,7 +457,7 @@ confirmed_geo_sf_sum <- confirmed_geo_sf %>%
   summarise(confirmed_new_count = sum(`confirmed_new_count`)) %>%
   mutate("Covid'19 confirmed rate (Per 10,000)" = (as.numeric(`confirmed_new_count`)/(as.numeric(`pop2010`)/10000)))
 
-confirmed_geo_2 <- left_join(confirmed_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
+confirmed_geo_2 <- left_join(confirmed_final, china_4480, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
 confirmed_geo_2 <- confirmed_geo_2 %>%
   mutate(confirmed_cumul_count = confirmed_cumul_count / (as.numeric(pop2010)/10000))
 confirmed_geo_acu_sf <- st_as_sf(confirmed_geo_2)
@@ -488,7 +486,7 @@ recovered_geo_sf_sum <- recovered_geo_sf %>%
   summarise(recovered_new_count = sum(`recovered_new_count`)) %>%
   mutate("Covid'19 recovered rate (Per 10,000)" = (as.numeric(`recovered_new_count`)/(as.numeric(`pop2010`)/10000)))
 
-recovered_geo_2 <- left_join(recovered_final, china_3415, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
+recovered_geo_2 <- left_join(recovered_final, china_4480, by = c("City_EN" = "City_EN", "Prov_EN" = "Prov_EN"))
 recovered_geo_acu_sf <- st_as_sf(recovered_geo_2)
 
 recovered_geo_acu_sf <- recovered_geo_acu_sf %>%
@@ -515,7 +513,7 @@ death_geo_sf_sum <- death_geo_sf %>%
   summarise(death_new_count = sum(`death_new_count`)) %>%
   mutate("Covid'19 death rate (Per 10,000)" = (as.numeric(`death_new_count`)/(as.numeric(`pop2010`)/10000)))
 
-death_geo_2 <- left_join(death_final, china_3415, by = c("City_EN" = "City_EN",  'Prov_EN' = 'Prov_EN'))
+death_geo_2 <- left_join(death_final, china_4480, by = c("City_EN" = "City_EN",  'Prov_EN' = 'Prov_EN'))
 death_geo_acu_sf <- st_as_sf(death_geo_2)
 
 death_geo_acu_sf <- death_geo_acu_sf %>%
@@ -2440,7 +2438,7 @@ server <- function(input, output, session) {
     observe ({ output$localmoran <- renderPlot({
         
 
-        tm_shape(china_3415) +
+        tm_shape(china_4480) +
             tm_polygons(col = "azure4")+
             tm_shape(eval(as.name(paste(input$corrinputcase, "_geo_sp.", input$corrinputcase, "_localMI_",input$corrinputmatrix, "_", input$corrinputtype, sep = "")))) +
             tm_fill(col = "Ii", 
