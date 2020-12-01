@@ -11,8 +11,9 @@ author:
   email: shermin.tan.2018@sis.smu.edu.sg
   affiliation: Singapore Management University
 abstract: |
-  This is the abstract.
-  It consists of two paragraphs.
+  Coronavirus disease (COVID-19) is an infectious disease caused by a newly discovered coronavirus. Most people infected with the COVID-19 virus will experience mild to moderate respiratory illness and recover without requiring special treatment. Older people, and those with underlying medical problems like cardiovascular disease, diabetes, chronic respiratory disease, and cancer are more likely to develop serious illness [@who]. This particular virus have affected millions of people around the world, and with the Wuhan, China being the epicentre of this matter, what can we do to gain a greater context of this threat? 
+  
+  In this research paper, we will perform an in-depth analysis of the spatio-temporal patterns of the disease spread to understand it so as to improve and deter the size of this threat. Moreover, we designed and developed Geovid, a web-based geo-visualization tool that is able to identify areas with COVID-19-related cases and pinpoint the factors affecting the spread. 
 output: rticles::acm_article
 csl: acm-sig-proceedings.csl
 bibliography: sigproc.bib
@@ -26,8 +27,6 @@ knitr::opts_chunk$set(echo = TRUE, fig.align="center")
 # Introduction 
 
 
-Coronavirus disease (COVID-19) is an infectious disease caused by a newly discovered coronavirus. Most people infected with the COVID-19 virus will experience mild to moderate respiratory illness and recover without requiring special treatment. Older people, and those with underlying medical problems like cardiovascular disease, diabetes, chronic respiratory disease, and cancer are more likely to develop serious illness.
-
 The COVID-19 virus spreads primarily through droplets of saliva or discharge from the nose when an infected person coughs or sneezes. With such similar symptoms to a common “cold”, this virus outbreak has spread to more than 200 countries and regions, affecting more than 60,000,000 people around the world. In addition, it has also swept out more than 1,400,000 deaths, as of November 2020.
 
 Presently, there are no vaccines available globally to protect against this virus, and the best way to prevent and slow down transmission is to be well informed about the COVID-19 virus, the disease it causes and how it spreads. In due of that, it will be significant to analyze the spread of COVID-19, understand where, when, and how it occurred by studying the spatio-temporal patterns of confirmed, recovered and death cases. 
@@ -36,7 +35,7 @@ Presently, there are no vaccines available globally to protect against this viru
 # Motivation & Objectives
 
 
-In due of the limited resources of COVID-19 data Singapore has to offer, we have decided to shift our focus to China where the first COVID-19 case was identified in November 2019. We’ve acquired data from *Harvard Dataverse* featuring daily updates from the period of January to September 2020 of COVID-19 China confirmed, recovered, dead and foreign* cases. Together with these data, we will be able to do an in-depth analysis of the spatio-temporal patterns of the disease spread and understanding it could greatly improve and deter the size of this threat.
+In due of the limited resources of COVID-19 data Singapore has to offer, we have decided to shift our focus to China where the first COVID-19 case was identified in November 2019. We’ve acquired data from *Harvard Dataverse* featuring daily updates from the period of January to September 2020 of COVID-19 China confirmed, recovered, dead and foreign* cases [@harvard]. Together with these data, we will be able to do an in-depth analysis of the spatio-temporal patterns of the disease spread and understanding it could greatly improve and deter the size of this threat.
 
 Furthermore, we aim to provide a web-based geospatial application with a web-enabled geospatial analytical tool to identify areas with COVID-19-related cases and pinpoint the factors affecting the spread. Particularly, this project will focus on the following objectives:
 
@@ -56,11 +55,11 @@ On the whole, we can evaluate results based on the findings, better plan and pro
 # Related Work
 
 
-Multiple studies regarding COVID-19 in China have been conducted after the first outbreak in Wuhan City. A study studied the spatial autocorrelation and factors of COVID-19 on a provincial level using methods such as Global Moran's I, Local Moran's I, Gertis-Ord Gi*.
+Multiple studies regarding COVID-19 in China have been conducted after the first outbreak in Wuhan City. A study studied the spatial autocorrelation and factors of COVID-19 on a provincial level using methods such as Global Moran's I, Local Moran's I, Gertis-Ord Gi* [@litreview1].
 
 The Global Moran I, will be used to measure the spatial characteristics of cases in the entire region, analyzing the overall spatial correlation and differences between the regions. If Moran’s I statistics shows a positive correlation, it implies that there is spatial clustering. Likewise, a negative correlation will imply a checkerboard spatial pattern. Local Moran’s I was later used to study correlation patterns between regions. Gertis-Ord Gi* then identifies the spatial association between the hot and cold spots that is statistically significance. These statistical methods are relevant and should be incorporated to our GEOVID application.
 
-Another similar study was done on the spatial and temporal differentiation of Covid-19 in China and its influencing factors. Like the previous study, uses Global Moran's I, Spatial Weight Matrix and Local Moran’s I. These statistical methods were also used to study the spatial correlation in China and its regions.
+Another similar study was done on the spatial and temporal differentiation of COVID-19 in China and its influencing factors [@litreview2]. Like the previous study, uses Global Moran's I, Spatial Weight Matrix and Local Moran’s I. These statistical methods were also used to study the spatial correlation in China and its regions.
 
 Based on these two research papers, Global Moran I and Local Moran's I were used to analyze the spatial correlation of COVID-19 in China. These analysis methods will give a guide of relevant statistics methods for our GEOVID application.
 
@@ -68,7 +67,7 @@ Based on these two research papers, Global Moran I and Local Moran's I were used
 # Research Methods
 
 
-As previously mentioned, Global Moran's I and Local Moran's I are statistical methods often used to study the spatial correlation regarding COVID-19 cases. As such, for the GEOVID application, both Global and Local Moran will be incorporated it the analysis. In addition, spatial weight matrix will also be used in the Local Moran's statistical Analysis to define the neighbour. 
+As previously mentioned, Global Moran's I and Local Moran's I are statistical methods often used to study the spatial correlation regarding COVID-19 cases [@mivslmi]. As such, for the GEOVID application, both Global and Local Moran will be incorporated it the analysis. In addition, spatial weight matrix will also be used in the Local Moran's statistical Analysis to define the neighbour. 
 
 
 ## Global Moran's I
@@ -159,7 +158,7 @@ Our application consists of 3 tabs as seen from Figure [3] below, which will lea
 knitr::include_graphics("figures/ui/main-tab-bar.jpg")
 ```
 
-On the Exploratory Data Analysis (EDA) page, there are 3 additional sub-sections [Figure 4], namely Line Graph, Choropleth, and Box Map. As seen below from the following figures[4,5,6,7], line graph is used to analyze the daily and cumulative count of COVID-19 cases over the period of months from January to September 2020, choropleth mapping is used to view the geographical distribution of the spread at provincial-cities level, and box mapping to visualize the outliers using the interquartile range of the COVID-19 rate based on the total number of cases and the total number of population in each city. 
+On the Exploratory Data Analysis (EDA) page, there are 3 additional sub-sections [Figure 4], namely Line Graph, Choropleth, and Box Map. As seen below from the following Figures[4,5,6,7], line graph is used to analyze the daily and cumulative count of COVID-19 cases over the period of months from January to September 2020, choropleth mapping is used to view the geographical distribution of the spread at provincial-cities level, and box mapping to visualize the outliers using the interquartile range of the COVID-19 rate based on the total number of cases and the total number of population in each city. 
 
 ```{r eda_subtags_ui, echo=FALSE, out.width="100%", fig.cap="EDA Sub-tabs Design", fig.show='hold'}
 knitr::include_graphics("figures/ui/eda-tabs.jpg")
@@ -174,7 +173,7 @@ knitr::include_graphics("figures/ui/eda-page-ui-choropleth.jpg")
 knitr::include_graphics("figures/ui/eda-page-ui-boxmap.jpg")
 ```
 
-Moving on to the Spatial Autocorrelation Analysis page, similarly there are 3 additional sub-sections [Figure 8], namely Local Moran's I, LISA and Moran's I Scatter Plot. As seen below from the following figures [9,10,11], local moran's I is used to compute the relationship between each region to its neighbour to identify concentrations of high, low and spatial outliers, global moran's I to measure spatial autocorrelation on both feature locations and feature values, and lastly localized indicators for spatial association (LISA) is used to identify spatial outliers and local clusters. 
+Moving on to the Spatial Autocorrelation Analysis page, similarly there are 3 additional sub-sections [Figure 8], namely Local Moran's I, LISA and Moran's I Scatter Plot. As seen below from the following Figures [9,10,11], local moran's I is used to compute the relationship between each region to its neighbour to identify concentrations of high, low and spatial outliers, global moran's I to measure spatial autocorrelation on both feature locations and feature values, and lastly localized indicators for spatial association (LISA) is used to identify spatial outliers and local clusters. 
 
 ```{r saa_subtabs_ui, echo=FALSE, out.width="100%", fig.cap="Spatial Autocorrelation Sub-tabs Design", fig.show='hold'}
 knitr::include_graphics("figures/ui/saa-tabs.jpg")
@@ -359,7 +358,7 @@ Localized Indicators of Spatial Association (LISA), a measurement used to comput
 
 According to the map below [Figure 29], the confirmed cases can be observed to show significant spatial clusters in the regions of Wuhan. The LISA map in January can be seen with larger affected areas of spatial clusters, which indicates that there are more areas with higher numbers of COVID-19 cases. Areas within the cluster are highly affected by the rise in COVID-19 cases of its neighbouring cities.  
 
-However, these areas were seen decreasing in the number of areas showing significant spatial cluster in April, July, and September, as compared to in January. This is because COVID-19 cases in those months has started to stabilize, indicating a success mitigation done by the authorities in stopping the spread of the virus. 
+However, these areas were seen decreasing in the number of areas showing significant spatial cluster in April, July, and September, as compared to in January. This is because COVID-19 cases in those months has started to stabilize, indicating a successful mitigation done by the authorities in stopping the spread of the virus. 
 
 ```{r conf_lisa, echo=FALSE, out.width="100%", fig.cap="LISA for Confirmed Cases", fig.show='hold'}
 knitr::include_graphics("figures/correlation/lisa_confirmed_adaptive.jpg")
@@ -371,7 +370,7 @@ The recovered cases [Figure 30] for LISA sees a spatial cluster over a smaller r
 knitr::include_graphics("figures/correlation/lisa recovered.jpg")
 ```
 
-In figure 31 shown below, the death cases of LISA map shows an decrease in the number areas in the cluster as the months progresses. This implies a decrease in death cases as lesser areas shows large number of death cases. This is due to the efforts done that was successful in lowering the number of death cases in these areas. 
+In Figure [31] shown below, the death cases of LISA map shows a decrease in the number of areas in the cluster as the months progresses. This implies a decrease in death cases as lesser areas shows large number of death cases. This is due to the efforts done that was successful in lowering the number of death cases in these areas. 
 
 ```{r dth_lisa, echo=FALSE, out.width="100%", fig.cap="LISA for Death Cases", fig.show='hold'}
 knitr::include_graphics("figures/correlation/lisa death.jpg")
@@ -399,7 +398,7 @@ Although RStudio has multiple packages that was crucial in the analysis of this 
 In our initial review of EDA, it can be seen that this virus have affected many cities in China, which indirectly making us to assume that there could be many spatial clusters based on the general geographical view of the spread of the virus. However, after performing the spatial autocorrelation analysis, it can be that there is only one spatial cluster for confirmed, recovered and death cases, Wuhan. 
 
 This is due to Wuhan being the ground zero for COVID-19. However, despite the virus being highly infectious, the reason being that the cluster is small have been resulted from China's mitigation measures in performing a pandemic lockdown in Wuhan and increasing medical facilities immediately right at the outbreak area. This particular measure have prevented further spread to its surrounding neighbours. 
- 
+
 
 # Future Work
 
@@ -427,21 +426,124 @@ references:
   issued:
     year: 2012
     month: 5
-- id: fenner2012a
-  title: One-click science marketing
+- id: litreview1
+  title: Spatial statistics and influencing factors of the novel coronavirus pneumonia 2019 epidemic in Hubei Province, China
   author:
-  - family: Fenner
-    given: Martin
-  container-title: Nature Materials
-  volume: 11
-  URL: 'https://doi.org/10.1038/nmat3283'
-  DOI: 10.1038/nmat3283
-  issue: 4
-  publisher: Nature Publishing Group
-  page: 261-263
+  - family: Xiong
+    given: Yongzhu
+  - family: Wang
+    given: Yunpeng
+  - family: Chen
+    given: Feng
+  container-title: 
+  volume: 
+  URL: 'https://doi.org/10.21203/rs.3.rs-16858/v2'
+  DOI: 10.21203/rs.3.rs-16858/v2
+  issue: 2
+  publisher: Research Square
+  page: 
   type: article-journal
   issued:
-    year: 2012
-    month: 3
+    year: 2020
+    month: 4
+- id: litreview2
+  title: Spatial and temporal differentiation of COVID-19 epidemic spread in mainland China and its influencing factors
+  author:
+  - family: Xie
+    given: Zhixiang
+  - family: Qin
+    given: Yaochen
+  - family: Yang
+    given: Li
+  - family: Wei
+    given: Shen
+  - family: Zheng
+    given: Zhicheng
+  - family: Liu
+    given: Shirui
+  container-title: Science of The Total Environment
+  volume: 744
+  URL: 'https://doi.org/10.1016/j.scitotenv.2020.140929'
+  DOI: 10.1016/j.scitotenv.2020.140929
+  issue: 2
+  publisher: Science Direct
+  page: 
+  type: article-journal
+  issued:
+    year: 2020
+    month: 
+- id: mivslmi
+  title: Global vs Local Spatial Autocorrelation
+  author: 
+  - family:
+    given: 
+  container-title: 
+  volume:
+  URL: 'https://storymaps.arcgis.com/stories/5b26f25bb81a437b89003423505e2f71'
+  type: article
+  publisher: ArcGIS
+  issued:
+    year: 2020
+    month: 7
+- id: harvard
+  title: China Covid-19 Daily Cases with Basemap
+  author: 
+  - family: 
+    given: 
+  container-title: 
+  volume:
+  URL: 'https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/MR5IJN'
+  type: article
+  publisher: Harvard Dataverse
+  issued:
+    year: 2020
+    month: 
+- id: who
+  title: coronavirus
+  author: 
+  - family: 
+    given: 
+  container-title: 
+  volume:
+  URL: 'https://www.who.int/health-topics/coronavirus#tab=tab_1'
+  type: article
+  publisher: World Health Organization
+  issued:
+    year: 2020
+    month: 
+- id: worldometers
+  title: COVID-19 Coronavirus Pandemic
+  author: 
+  - family: 
+    given: 
+  container-title: 
+  volume:
+  URL: 'https://www.worldometers.info/coronavirus/?utm_campaign=homeAdUOA?Si'
+  type: article
+  publisher: World Health Organization
+  issued:
+    year: 2020
+      month: 
+- id: calculatemi
+  title: Project 4: Calculating Global Moran's I and the Moran Scatterplot
+  author: 
+  - family: Blanford
+    given: Justine
+  - family: Kessler
+    given: Fritz
+  - family: Griffin
+    given: Amy
+  - family: O'Sullivan
+    given: David
+  container-title: 
+  volume:
+  URL: 'https://www.e-education.psu.edu/geog586/node/672'
+  type: article
+  publisher: PennState, College of Earth and Mineral Sciences
+  issued:
+    year: 
+    month: 
 ...
+
+
 
