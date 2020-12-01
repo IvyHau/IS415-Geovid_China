@@ -28,9 +28,9 @@ knitr::opts_chunk$set(echo = TRUE, fig.align="center")
 
 Coronavirus disease (COVID-19) is an infectious disease caused by a newly discovered coronavirus. Most people infected with the COVID-19 virus will experience mild to moderate respiratory illness and recover without requiring special treatment. Older people, and those with underlying medical problems like cardiovascular disease, diabetes, chronic respiratory disease, and cancer are more likely to develop serious illness.
 
-The COVID-19 virus spreads primarily through droplets of saliva or discharge from the nose when an infected person coughs or sneezes. With such similar symptoms to a common “cold”, this virus outbreak has spread to more than 200 countries and regions, affecting more than 60,000,000 people around the world, with more than 50% of recovery rate. In addition, it has also swept out more than 1,400,000 deaths, as of November 2020.
+The COVID-19 virus spreads primarily through droplets of saliva or discharge from the nose when an infected person coughs or sneezes. With such similar symptoms to a common “cold”, this virus outbreak has spread to more than 200 countries and regions, affecting more than 60,000,000 people around the world. In addition, it has also swept out more than 1,400,000 deaths, as of November 2020.
 
-Presently, there are no vaccines available globally to protect against this virus, and the best way to prevent and slow down transmission is to be well informed about the COVID-19 virus, the disease it causes and how it spreads. In due of that, it will be significant to analyse the spread of COVID-19, understand where, when, and how it occurred by studying the spatio-temporal patterns of confirmed, recovered and death cases. 
+Presently, there are no vaccines available globally to protect against this virus, and the best way to prevent and slow down transmission is to be well informed about the COVID-19 virus, the disease it causes and how it spreads. In due of that, it will be significant to analyze the spread of COVID-19, understand where, when, and how it occurred by studying the spatio-temporal patterns of confirmed, recovered and death cases. 
 
 
 # Motivation & Objectives
@@ -42,7 +42,7 @@ Furthermore, we aim to provide a web-based geospatial application with a web-ena
 
 1. Visualize amount/density of the cases by performing relevant exploratory data analysis;
 2. Conduct global and local spatial analysis to uncover spatial correlation patterns and its influencing factors;
-3. Create a web-based interface through R Shiny with relevant user inputs to display relevant data analysis; The application will comprise(s) of the following analysis requirements: 
+3. Create a geo-visualization tool through R Shiny with relevant user inputs to display relevant data analysis; The application will comprise(s) of the following analysis requirements: 
   
     *   Graphical/Geographical visualization framework that can display the amount/density of the COVID-19 cases over time;
     *   Map visualization framework that supports macro and micro views;
@@ -56,25 +56,25 @@ On the whole, we can evaluate results based on the findings, better plan and pro
 # Related Work
 
 
-Multiple studies regarding COVID-19 in China have been conducted after the first outbreak in Wuhan City. A study studied the spatial autocorrelation and factors of COVID-19 on a provincial level using methods such as Global Moran I, Local Moran I, Gertis-Ord Gi*.
+Multiple studies regarding COVID-19 in China have been conducted after the first outbreak in Wuhan City. A study studied the spatial autocorrelation and factors of COVID-19 on a provincial level using methods such as Global Moran's I, Local Moran's I, Gertis-Ord Gi*.
 
-The Global Moran I, will be used to measure the spatial characteristics of cases in the entire region, analysing the overall spatial correlation and differences between the regions. If Moran’s I statistics shows a positive correlation, it implies that there is spatial clustering. Likewise, a negative correlation will imply a checkerboard spatial pattern. Local Moran’s I was later used to study correlation patterns between regions. Gertis-Ord Gi* then identifies the spatial association between the hot and cold spots that is statistically significance. These statistical methods are relevant and should be incorporated to our GEOVID application.
+The Global Moran I, will be used to measure the spatial characteristics of cases in the entire region, analyzing the overall spatial correlation and differences between the regions. If Moran’s I statistics shows a positive correlation, it implies that there is spatial clustering. Likewise, a negative correlation will imply a checkerboard spatial pattern. Local Moran’s I was later used to study correlation patterns between regions. Gertis-Ord Gi* then identifies the spatial association between the hot and cold spots that is statistically significance. These statistical methods are relevant and should be incorporated to our GEOVID application.
 
-Another similar study was done on the spatial and temporal differentiation of Covid-19 in China and its influencing factors. Like the previous study, uses Global Moran I, Spatial Weight Matrix and Local Moran’s I. These statistical methods were also used to study the spatial correlation in China and its regions.
+Another similar study was done on the spatial and temporal differentiation of Covid-19 in China and its influencing factors. Like the previous study, uses Global Moran's I, Spatial Weight Matrix and Local Moran’s I. These statistical methods were also used to study the spatial correlation in China and its regions.
 
-Based on these two research papers, Global Moran I and Local Moran I were used to analyse the spatial correlation of Covid-19 in China. These analysis methods will give a guide of relevant statistics methods for our GEOVID application.
+Based on these two research papers, Global Moran I and Local Moran's I were used to analyze the spatial correlation of COVID-19 in China. These analysis methods will give a guide of relevant statistics methods for our GEOVID application.
 
 
 # Research Methods
 
 
-As previously mentioned, Global Moran I and Local Moran I are statistical methods often used to study the spatial correlation regarding Covid-19 cases. As such, for the GEOVID application, both Global and Local Moran will be incorporated it the analysis. In addition, spatial weight matrix will also be used in the Local Moran statistical Analysis to define the neighbour. 
+As previously mentioned, Global Moran's I and Local Moran's I are statistical methods often used to study the spatial correlation regarding COVID-19 cases. As such, for the GEOVID application, both Global and Local Moran will be incorporated it the analysis. In addition, spatial weight matrix will also be used in the Local Moran's statistical Analysis to define the neighbour. 
 
 
 ## Global Moran's I
 
 
-Global Moran I is a statistical method used to calculate the relationship between factors to its surrounding area. It evaluates if patterns are clustered, dispersed, or random. It also calculates the x score and p-value to find out the significance of index. P-value and z-score will prove is the null hypothesis is statistically significant. If the p-value is small and z-score falls outside the confidence level, null hypothesis will be rejected, proving that spatial patterns is statistically significant. The index value will indicate signs of spatial patterns, specifically, index near +1 would indicate clustering pattern while –1 would indicate dispersion.
+Global Moran's I is a statistical method used to calculate the relationship between factors to its surrounding area. It evaluates if patterns are clustered, dispersed, or random. It also calculates the x score and p-value to find out the significance of index. P-value and z-score will prove is the null hypothesis is statistically significant. If the p-value is small and z-score falls outside the confidence level, null hypothesis will be rejected, proving that spatial patterns is statistically significant. The index value will indicate signs of spatial patterns, specifically, index near +1 would indicate clustering pattern while –1 would indicate dispersion.
 
 The formula for Global Moran's I is as followed:
 
@@ -83,13 +83,13 @@ The formula for Global Moran's I is as followed:
 Figure 1: Global Moran's I algorithm
 \end{center}
 
-In this study, Global Moran will be used to measure the spatial correlation of Covid-19 rates per 10,000 people, to the whole of China. Moran.test() and monte carlo simulation will be done to determine the significance of spatial patterns present. 
+In this study, Global Moran's I will be used to measure the spatial correlation of COVID-19 rate by per 10,000 people living in the particular city, to the whole of China. Moran.test() and monte carlo simulation will be done to determine the significance of spatial patterns present. 
 
 
 ## Local Moran's I
 
 
-Local Moran I is a local spatial autocorrelation analysis method based of Global Moran I. Local Moran I study the relationship between region, in this case, between cities in China. It also identifies the spatial outliers. Positive Local Moran index would suggest that region is surrounded with similar values, which will be identified as a cluster, while a negative index would suggest that region is surrounded by dissimilar values, which could be identified as an outlier.
+Local Moran's I is a local spatial autocorrelation analysis method based of Global Moran's I. Local Moran's I study the relationship between region, in this case, between cities in China. It also identifies the spatial outliers. Positive Local Moran's index would suggest that region is surrounded with similar values, which will be identified as a cluster, while a negative index would suggest that region is surrounded by dissimilar values, which could be identified as an outlier.
 
 The formula for Local Moran’s I is as followed:
 
@@ -98,7 +98,7 @@ The formula for Local Moran’s I is as followed:
 Figure 2: Local Moran's I algorithm
 \end{center}
 
-In this study, Local Moran’s I will be used to measure the local spatial correlation of Covid-19 rates per 10,000 people to cities in China. 
+In this study, Local Moran’s I will be used to measure the local spatial correlation of COVID-19 rates per 10,000 people to cities in China. 
 
 
 # Approach
@@ -106,8 +106,11 @@ In this study, Local Moran’s I will be used to measure the local spatial corre
 
 ## Data Collection
 
+As mentioned earlier in our introduction, data used in our analysis will be extracted from *Harvard Dataverse China COVID-19 Daily Cases with Basemap*. We will split them into 2 sections, namely Aspatial and Geospatial.
 
-Data of the coronavirus virus spread in China (January to September, 2020): Confirmed, Recovered and Death cases, Population Data (2010)* in Tab-Delimited format, China City/Province basemaps in Shapefile (SHP) format, are obtained from *Harvard Dataverse: China COVID-19 Daily Cases with Basemap*. 
+* Aspatial Data: Data of the coronavirus virus spread in China (January to September, 2020): Confirmed, Recovered and Death cases, Population Data (2010)* in Tab-Delimited format.
+
+* Geospatial Data: China City/Province basemaps in Shapefile (SHP) format.
 
 *Kindly take note that population data after year 2010 of each city are not readily available online as most of the sources only provide population data based on province or as an overall count instead. Therefore, we will make use of the population data of year 2010 given in the dataset above. 
 
@@ -115,7 +118,7 @@ Data of the coronavirus virus spread in China (January to September, 2020): Conf
 ## Data Cleaning and Wrangling
 
 
-For all the respective data: Confirmed, Recovered and Death cases, we will only need to extract the daily count based on the date that the data was recorded. We will be focusing only from January to September 2020 as these datasets are the most complete range in the originals. In addition, duplicates will also need to be checked and removed to prevent skewed data analysis. Standardization of data, such as, ensuring columns of each data files and their data types are the same before reclassifying selected columns, is conducted. Consequently, it will then produce an unbiased comparison and analysis.
+For all the respective data: Confirmed, Recovered and Death cases, we will only need to extract the daily count based on the date that the data was recorded. We will be focusing only from January to September 2020 as these datasets are the most complete basing off the raw dataset available. In addition, duplicates will also need to be checked and removed to prevent skewed data analysis. Standardization of data, such as, ensuring columns of each data files and their data types are the same before reclassifying selected columns, is conducted. Consequently, it will then produce an unbiased comparison and analysis.
 
 
 # System Architecture
@@ -148,40 +151,61 @@ rpkg %>%
 
 # Application
 
+
 ## User Interface Design
 
 
-Our application consists of 3 tabs which will lead our user to the exploratory data analysis, spatial autocorrelation analysis and full detailed dataset that the application uses to analyze the results. 
+Our application consists of 3 tabs as seen from Figure [3] below, which will lead our user to the exploratory data analysis, spatial autocorrelation analysis and full detailed dataset that the application uses to analyze the results.
 
-On the Exploratory Data Analysis (EDA) page, there are 3 additional sub-sections, namely Line Graph, Choropleth, and Box Map. As seen below from the following figures[-], line graph is used to analyze the daily and cumulative count of COVID-19 cases over the priod of months from January to September 2020, choropleth mapping is used to view the geographical distribution of the spread at provincial-cities level, and box mapping to visualize the outliers using the interquartile range of the COVID-19 rate based on the total number of cases and the total number of population in each city. 
+![Main tabs](figures/ui/main-tab-bar.jpg)\
+\begin{center}
+Figure 3: Main Tabs Design
+\end{center}
 
+On the Exploratory Data Analysis (EDA) page, there are 3 additional sub-sections [Figure 4], namely Line Graph, Choropleth, and Box Map. As seen below from the following figures[4,5,6,7], line graph is used to analyze the daily and cumulative count of COVID-19 cases over the period of months from January to September 2020, choropleth mapping is used to view the geographical distribution of the spread at provincial-cities level, and box mapping to visualize the outliers using the interquartile range of the COVID-19 rate based on the total number of cases and the total number of population in each city. 
+
+![EDA Sub-tabs Design](figures/ui/eda-tabs.jpg)\
+\begin{center}
+Figure 4: EDA Sub-tabs Design
+\end{center}
 ![EDA Line Graph User Interface Design](figures/ui/eda-page-ui-line.jpg)\
 \begin{center}
-Figure -: EDA Line Graph User Interface Design
+Figure 5: EDA Line Graph User Interface Design
 \end{center}
-![EDA Line Graph User Interface Design](figures/ui/eda-page-ui-choropleth.jpg)\
+![EDA Choropleth User Interface Design](figures/ui/eda-page-ui-choropleth.jpg)\
 \begin{center}
-Figure -: EDA Choropleth User Interface Design
+Figure 6: EDA Choropleth User Interface Design
 \end{center}
-![EDA Line Graph User Interface Design](figures/ui/eda-page-ui-boxmap.jpg)\
+![EDA Box Map User Interface Design](figures/ui/eda-page-ui-boxmap.jpg)\
 \begin{center}
-Figure -: EDA Box Map User Interface Design
+Figure 7: EDA Box Map User Interface Design
 \end{center}
 
+Moving on to the Spatial Autocorrelation Analysis page, similarly there are 3 additional sub-sections [Figure 8], namely Local Moran's I, LISA and Moran's I Scatter Plot. As seen below from the following figures [9,10,11], local moran's I is used to compute the relationship between each region to its neighbour to identify concentrations of high, low and spatial outliers, global moran's I to measure spatial autocorrelation on both feature locations and feature values, and lastly localized indicators for spatial association (LISA) is used to identify spatial outliers and local clusters. 
 
-Moving on to the Spatial Autocorrelation Analysis page, 
-
-![Spatial Autocorrelation User Interface Design](figures/ui/spatial-autocorrelation-page-ui.jpg)\
+![Spatial Autocorrelation Sub-tabs Design](figures/ui/saa-tabs.jpg)\
 \begin{center}
-Figure -: Spatial Autocorrelation User Interface Design
+Figure 8: Spatial Autocorrelation Sub-tabs Design
+\end{center}
+![Local Moran's I User Interface Design](figures/ui/spatial_autocorrelation_page_local_moran_i-ui.jpg)\
+\begin{center}
+Figure 9: Local Moran's I User Interface Design
+\end{center}
+![LISA User Interface Design](figures/ui/spatial_autocorrelation_page_lisa-ui.jpg)\
+\begin{center}
+Figure 10: LISA User Interface Design
+\end{center}
+![Global Moran's I User Interface Design](figures/ui/Moran_I_Scatterplot_app_interface.jpg)\
+\begin{center}
+Figure 11: Global Moran's I User Interface Design
 \end{center}
 
 
-Lastly, on the Data page, it will showcase the data in a table format where the user will be able to view the raw data that is used for our analysis. 
+Lastly, on the Data page, it will showcase the data in an interactive table format where the user will be able to view the raw data that is used for our analysis. 
 
 ![Data Outlook User Interface Design](figures/ui/data-page.jpg)\
 \begin{center}
-Figure -: Data Outlook User Interface Design
+Figure 12: Data Outlook User Interface Design
 \end{center}
 
 
@@ -194,14 +218,7 @@ User will be able to filter the data by period of months they want to analyze an
 
 ![EDA User Input](figures/ui/eda-user-input.jpg)\
 \begin{center}
-Figure -: EDA User Input
-\end{center}
-
-<!-- Within EDA, there are 3 different analysis the user is able to view. There are line graphs for daily and cumulative number of cases based on the months input, choropleth mapping for the geographical distribution of the spread of COVID-19 and lastly, box map to analyze extreme values and outliers. -->
-
-![EDA Tabs](figures/ui/eda-tabs.jpg)\
-\begin{center}
-Figure -: EDA Tabs
+Figure 13: EDA User Input
 \end{center}
 
 
@@ -212,89 +229,90 @@ Similarly, user will be able to filter the data by period of months they want to
 
 ![Spatial Autocorrelation User Input](figures/ui/spatial-autocorrelation-user-input.jpg)\
 \begin{center}
-Figure -: Spatial Autocorrelation User Input
+Figure 14: Spatial Autocorrelation User Input
 \end{center}
 
 
 # Results
 
+
 ## Exploratory Data Analysis
+
 
 ### Confirmed Cases
 
-The Line Graph of Confirmed Cases below visualized the New cases and Cumulative cases of COVID-19 occurred in the respective x-Axis over the timeline of months between January to September 2020 in y-Axis, which based on the observation figure [] below, the initial count of the new daily cases started off with 11455 in January and had a steep increase to 66946 cases in February, and in the month of March onwards, there has been a drop and remained steadily since then. While for cumulative cases, upon reaching 78401 cumulative cases in February, the incoming new daily cases have been greatly reduced. 
+
+The Line Graph of Confirmed Cases below visualized the New cases and Cumulative cases of COVID-19 occurred in the respective x-Axis over the timeline of months between January to September 2020 in y-Axis, which based on the observation figure [15] below, the initial count of the new daily cases started off with 11455 in January and had a steep increase to 66946 cases in February, and in the month of March onwards, there has been a drop and remained steadily since then. While for cumulative cases, upon reaching 78401 cumulative cases in February, the incoming new daily cases have been greatly reduced. 
 
 ![Line Graph of Confirmed Cases](figures/EDA/confirmed_linegraph.png)\
 \begin{center}
-Figure -: Line Graph of Confirmed Cases
+Figure 15: Line Graph of Confirmed Cases
 \end{center}
 
-Moving on, based on the choropleth mapping figure [] below, represents the defined aggregation of density in the confirmed cases of each individual city, differentiating by the months of January, April, July and September. The cluster started off from the china city of Wuhan and it spread to the neighbouring cities overtime. 
+Moving on, based on the choropleth mapping figure [16] below, represents the defined aggregation of density in the confirmed cases of each individual city, differentiating by the months of January, April, July and September. The cluster started off from the china city of Wuhan and it spread to the neighbouring cities overtime. 
 
 ![Choropleth of Confirmed Cases](figures/EDA/confirmed_choropleth.png)\
 \begin{center}
-Figure -: Choropleth of Confirmed Cases
+Figure 16: Choropleth of Confirmed Cases
 \end{center}
 
 After looking at the results of the choropleth mapping above, let us take a look at the box map of confirmed cases and analyze its outliers. Box map of confirmed cases generally shows the changes across the months, by filtrating its data into the relevant interquartile range. 
-<!-- The box map of confirmed cases shows the changes in the rate of COVID-19 recovered cases across the four different months in China, using the calculations from interquartile range, categorizing areas into each range.  -->
 
-As shown in figure [] below, box map in the month of January shows the least number of areas lying in the upper outlier range. The number of areas in the upper outlier range increase as the months go by, with the most areas in the month of September. The increase in the areas of the upper outlier region suggests that it sees an increase in areas that may rise in the confirmed number of COVID-19 cases in China.
-
+As shown in figure [17] below, box map in the month of January shows the least number of areas lying in the upper outlier range. The number of areas in the upper outlier range increase as the months go by, with the most areas in the month of September. The increase in the areas of the upper outlier region suggests that it sees an increase in areas that may rise in the confirmed number of COVID-19 cases in China.
 
 ![Box Map of Confirmed Cases](figures/EDA/confirmed_boxmap.png)\
 \begin{center}
-Figure -: Box Map of Confirmed Cases
+Figure 17: Box Map of Confirmed Cases
 \end{center}
 
 
 ### Recovered Cases
 
 
-While there are high number of cases in the month of February and March, the sharp drop in cases after in April implies that China has managed to cope with the surge in cases. 
+Similarly from the confirmed cases, the line graph of recovered cases below [Figure 18] visualized the New cases and Cumulative cases of COVID-19 occurred in the respective x-Axis over the timeline of months between January to September 2020 in y-Axis. 
 
-<!-- While there is a high volume of new COVID-19 cases happening, there are also a great deal of a number of successful cases recovered between January and March which allows rooms for preparation. And if based on the cumulative cases by month, the total number of death toll when falls on march, which has already hit a record high of 75189 cases.  -->
+While there are high number of cases in the month of February and March, the sharp drop in cases after April implies that China has managed to cope with the surge in cases. Correspondingly, the number of recovered cases are on a constant rise when looking at it as an overall.
 
 ![Line Graph of Recovered Cases](figures/EDA/recovered_linegraph.jpg)\
 \begin{center}
-Figure -: Line Graph of Recovered Cases
+Figure 18: Line Graph of Recovered Cases
 \end{center}
 
-The choropleth mapping below shows the distribution of recovered cases in China. Based on Figure [], it can be seen that there is an increase in the number of recovered cases throughout China from January to September.  Although there is a clear increase in the number of recovered cases in Wuhan and its surrounding areas, there are also other areas in China that has also seen this increase, which would probably be due to the increase in the number of confirmed cases in those respective areas.
+The choropleth mapping below shows the distribution of recovered cases in China. Based on Figure [19], it can be seen that there is an increase in the number of recovered cases throughout China from January to September.  Although there is a clear increase in the number of recovered cases in Wuhan and its surrounding areas, there are also other areas in China that has also seen this increase, which would probably be due to the increase in the number of confirmed cases in those respective areas.
 
 ![Choropleth of Recovered Cases](figures/EDA/recovered_choropleth.jpg)\
 \begin{center}
-Figure -: Choropleth of Recovered Cases
+Figure 19: Choropleth of Recovered Cases
 \end{center}
 
 Moving forward on to the box map for recovered cases, it shows the rate of COVID-19 cases across 4 different months in China. 
 
-As observed from Figure [] below, the map shows high rates of recoveries at cities such as Wuhan, which lies in the upper outlier range. The number of areas that lies in the upper outlier range increases over the progression of time. While this implies that this area sees a higher number of recovery rates, it does not mean that this is due to a better health care or related factors that lead to the increase in rate of recovery, it simply means there are higher rates of recovery cases. It is important to consider the number of confirmed cases in these areas. Areas with high rate of recovered cases lying on the upper outlier usually have high rates of confirmed cases, which is the more probable explanation behind the high rate of recovery. 
+As observed from Figure [20] below, the map shows high rates of recoveries at cities such as Wuhan, which lies in the upper outlier range. The number of areas that lies in the upper outlier range increases over the progression of time. While this implies that this area sees a higher number of recovery rates, it does not mean that this is due to a better health care or related factors that lead to the increase in rate of recovery, it simply means there are higher rates of recovery cases. It is important to consider the number of confirmed cases in these areas. Areas with high rate of recovered cases lying on the upper outlier usually have high rates of confirmed cases, which is the more probable explanation behind the high rate of recovery. 
 
 In addition, the box map of January is the exception amongst the others, showing the entire China as upper outlier, this is due to the insufficient observations to determine the interquartile range. 
 
 ![Box Map of Recovered Cases](figures/EDA/recovered_boxmap.jpg)\
 \begin{center}
-Figure -: Box Map of Recovered Cases
+Figure 20: Box Map of Recovered Cases
 \end{center}
 
 
 ### Death Cases
 
 
-Based on Figure [] below, it can be seen that it started off with 253 death cases in January, and followed by a spike of 2526 new death cases in February. 
+Based on Figure [21] below, it can be seen that it started off with 253 death cases in January, and followed by a spike of 2526 new death cases in February. 
 <!-- As per monthly basis in the Line Graph of new cases, there are 253 death cases occurred during the month January, following by February which brought up to another 2526 new cases, and in the March and April as well which hit an accumulative of 4572 new cases over the Total confirmed cumulative numbers of 81111.  -->
 
 ![Line Graph of Death Cases](figures/EDA/death_linegraph.png)\
 \begin{center}
-Figure -: Line Graph of Death Cases
+Figure 21: Line Graph of Death Cases
 \end{center}
 
-The choropleth for death cases shows the distribution of death cases throughout China, which shows that the distribution of death cases to be concentrated at the Wuhan area. Throughout January, April, Jul & September, September sees the highest number of death cases concentrated in the Wuhan area, with a slight increase in cases in the surrounding areas. This is due to high number of confirmed cases in those regions. It is also important to note that Wuhan is the centre of the epidemic, which would explain why there is a higher number of Covid-19 deaths in that region, as it is still struggling to contain the newly discovered virus.
+The choropleth for death cases shows the distribution of death cases throughout China, which shows that the distribution of death cases to be concentrated at the Wuhan area. Throughout January, April, Jul & September, September sees the highest number of death cases concentrated in the Wuhan area, with a slight increase in cases in the surrounding areas. This is due to high number of confirmed cases in those regions. It is also important to note that Wuhan is the centre of the epidemic, which would explain why there is a higher number of COVID-19 deaths in that region, as it is still struggling to contain the newly discovered virus.
 
 ![Choropleth of Death Cases](figures/EDA/death_choropleth.png)\
 \begin{center}
-Figure -: Choropleth of Death Cases
+Figure 22: Choropleth of Death Cases
 \end{center}
 
 The box map for the rate of death cases shows that all areas lies in the upper outlier. This is due to the insufficient number of death cases available. As such, it is important to do further spatial autocorrelation to analyse the presence of spatial patterns and clusters. 
@@ -310,33 +328,73 @@ Figure -: Box Map of Death Cases
 
 ## Spatial Autocorrelation Analysis 
 
-To determine if clusters observed in the earlier choropleth is significant, local Moran I is used to compute the relationship between each region to its neighbour. The figure [] below shows the Local Moran's I of each respective type of cases based on the adaptive weight matrix. 
 
-As observed from Figure [] below, Wuhan sees a significantly positive Local Moran's I statistic of confirmed cases rate. This also suggest that Wuhan is a spatial cluster that is significant, which means that its neighbours has a higher chance of being affected by the increase number of COVID-19 cases in Wuhan.
+### Local Moran's I
+
+
+To determine if clusters observed in the earlier choropleth is significant, local Moran I is used to compute the relationship between each region to its neighbour. The figure [23] below shows the Local Moran's I of each respective type of cases based on the adaptive weight matrix. 
+
+As observed from Figure [23] below, Wuhan sees a significantly positive Local Moran's I statistic of confirmed cases rate. This also suggest that Wuhan is a spatial cluster that is significant, which means that its neighbours has a higher chance of being affected by the increase number of COVID-19 cases in Wuhan.
 
 On the other hand, the areas that shows a negative Local Moran's I statistic implies that there is no relationship between itself and its neighbour, suggesting that COVID-19 cases in those areas do not affect its neighbours. 
 
 ![Local Moran's I for Confirmed Cases](figures/correlation/local_moran_i_confirmed-adaptive.jpg)\
 \begin{center}
-Figure -: Local Moran's I for Confirmed Cases
+Figure 23: Local Moran's I for Confirmed Cases
 \end{center}
 
-Moving forward, the figure [] below shows the recovered cases in Wuhan having a positive local Moran I statistics, which imply that there is enough evidence to conclude that Wuhan is a spatial cluster. This also suggest that recovered COVID-19 cases in Wuhan highly affects the number of recovered cases in its neighbouring areas.
+Moving forward, the figure [24] below shows the recovered cases in Wuhan having a positive local Moran I statistics, which imply that there is enough evidence to conclude that Wuhan is a spatial cluster. This also suggest that recovered COVID-19 cases in Wuhan highly affects the number of recovered cases in its neighbouring areas.
 
 On the contrary, the negative local Moran's I statistics suggest that the recovered rate in these areas are not highly affect its neighbour.
 
 ![Local Moran's I for Recovered Cases](figures/correlation/local_moran_i_recovered-adaptive.jpg)\
 \begin{center}
-Figure -: Local Moran's I for Confirmed Cases
+Figure 24: Local Moran's I for Confirmed Cases
 \end{center}
 
-As observed from Figure [], the death rate in Wuhan shows a significant evidence of spatial cluster, suggesting that its death rate will greatly affect its neighbouring areas. The negative Local Moran's I areas implies that the death rate in the area will not greatly affect the death rate in its neighbouring areas. 
+As observed from Figure [25], the death rate in Wuhan shows a significant evidence of spatial cluster, suggesting that its death rate will greatly affect its neighbouring areas. The negative Local Moran's I areas implies that the death rate in the area will not greatly affect the death rate in its neighbouring areas. 
 
 ![Local Moran's I for Death Cases](figures/correlation/local_moran_i_death-adaptive.jpg)\
 \begin{center}
-Figure -: Local Moran's I for Confirmed Cases
+Figure 25: Local Moran's I for Confirmed Cases
 \end{center}
 
+
+### Global Moran's I
+
+![Global Moran's I for Confirmed Cases](figures/correlation/scatterplot_confirmed_rook_binary.jpg)\
+\begin{center}
+Figure 26: Global Moran's I for Confirmed Cases
+\end{center}
+
+![Global Moran's I for Recovered Cases](figures/correlation/)\
+\begin{center}
+Figure 27: Global Moran's I for Recovered Cases
+\end{center}
+
+![Global Moran's I for Death Cases](figures/correlation/)\
+\begin{center}
+Figure 28: Global Moran's I for Death Cases
+\end{center}
+
+
+### Localized Indicator for Spatial Association (LISA)
+
+
+![LISA for Confirmed Cases](figures/correlation/lisa_confirmed_adaptive.jpg)\
+\begin{center}
+Figure 29: LISA for Confirmed Cases
+\end{center}
+
+![LISA for Recovered Cases](figures/correlation/lisa recovered.jpg)\
+\begin{center}
+Figure 30: LISA for Recovered Cases
+\end{center}
+
+![LISA for Death Cases](figures/correlation/lisa death.jpg)\
+\begin{center}
+Figure 31: LISA for Death Cases
+\end{center}
 
 
 # Limitations
@@ -344,20 +402,28 @@ Figure -: Local Moran's I for Confirmed Cases
 
 ## Incomplete data 
 
-The incomplete data in the datasets, namely, confirmed, recovered, and death, resulted in limited analysis. This is especially so for the death data, with several cities with no information recorded. This resulted in missing areas, which is apparent in the death choropleth, showing gaps in the map. 
+
+The incomplete data in the datasets, namely, confirmed, recovered, and death, resulted in limited analysis. This could emerge from human error with no/missing inputs. We can see the effect of incomplete data from the death cases data, with having several cities with no information recorded. This resulted in missing areas, which is apparent in the death choropleth, showing gaps in the map. 
+
 
 ## Computational Issues 
+
 
 Although RStudio has multiple packages that was crucial in the analysis of this study, there were several computational limitations, namely, memory allocation issues. RStudio consumes large amounts of memory processes, resulting in the failure to run the relevant programs and data analysis for the analysis.  
 
 
 # Discussion
 
-Based on the various analysis that was done, a clear spatial cluster for confirmed, recovered and death cases can be clearly seen in Wuhan. This is due to Wuhan being the ground zero for COVID-19. However, despite being a highly infectious virus, the reason for the small cluster was due to the lockdown in Wuhan, which prevented further spread of the disease to its neighbouring areas.  
+
+In our initial review of EDA, it can be seen that this virus have affected many cities in China, which indirectly making us to assume that there could be many spatial clusters based on the general geographical view of the spread of the virus. However, after performing the spatial autocorrelation analysis, it can be that there is only one spatial cluster for confirmed, recovered and death cases, Wuhan. 
+
+This is due to Wuhan being the ground zero for COVID-19. However, despite the virus being highly infectious, the reason being that the cluster is small have been resulted from China's mitigation measures in performing a pandemic lockdown in Wuhan and increasing medical facilities immediately right at the outbreak area. This particular measure have prevented further spread to its surrounding neighbours. 
+ 
 
 # Future Work
 
-Despite the study being done on a smaller scale, a more in-depth analysis with more data would on a bigger scale allow forecasting on the potential areas that would be affected by the spread of Covid-19 cases. 
+
+In any ways to explore further analysis, we will first need to acquire more data such as demand and supply of medical facilites and/or factors affecting the spread. These data could allow us to provide a range of supporting analysis to provide a better accuracy and valuable recommendations to deter the situation. Additionally, we could also explore on forecasting on the potential areas if we can acquire the current data on a bigger scale. 
 
 # Acknowledgement
 
